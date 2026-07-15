@@ -1,0 +1,293 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* ============================================================
+   1. COLOR SPECIFICATION & FLEXIBLE CUSTOM THEME VARIABLES
+   ============================================================ */
+:root {
+  /* NIGHT MODE (Slick Organic Dark Blue-Green with Premium Light Gold Text & Highlights) */
+  --bg-app: #06110d;            /* Rich dark organic spruce background */
+  --bg-panel: #0b221a;          /* Deep warm dark organic green-blue for left sidebar, headers, and forms */
+  --bg-card: #0f2c22;           /* Warm obsidian deep emerald forest green for cards and panels */
+  --bg-input: #081712;          /* Ultra dark forest-black for input fields and selectors */
+  --border-color: rgba(223, 204, 161, 0.25); /* Warm light gold-tinted borders */
+  
+  --text-primary: #dfcca1;      /* Premium light gold text for titles and main labels */
+  --text-secondary: #ebd5b3;    /* Soft biscuit gold for secondary headings */
+  --text-muted: #7da592;        /* Elegant sage grey-green for descriptions */
+  
+  --accent-bg: #dfcca1;         /* Premium light gold for active items and primary buttons */
+  --accent-text: #0b221a;       /* Deep dark green text for high contrast on active items */
+  --accent-hover: #ebd5b3;      /* Brighter biscuit gold on hover */
+  
+  --purple-glow: rgba(223, 204, 161, 0.08);
+  --glass-panel-bg: rgba(11, 34, 26, 0.85);
+  --glass-card-bg: rgba(15, 44, 34, 0.75);
+  --glass-input-bg: rgba(8, 23, 18, 0.65);
+  --glow-color: rgba(223, 204, 161, 0.12);
+
+  /* Sidebar fallback variables in dark mode */
+  --bg-sidebar: #0b221a;
+  --text-sidebar: #7da592;
+  --bg-sidebar-active: #dfcca1;
+  --text-sidebar-active: #0b221a;
+
+  /* Dynamic accent-emerald colors to preserve green in dark theme */
+  --accent-emerald-850: #044e39;
+  --accent-emerald-800: #065f46;
+  --accent-emerald-700: #047857;
+  --accent-emerald-600: #059669;
+  --accent-emerald-500: #10b981;
+  --accent-emerald-400: #34d399;
+  --accent-emerald-300: #6ee7b7;
+  --accent-amber-300: #fcd34d;
+}
+
+:root[data-theme="light"] {
+  /* DAY MODE (Follow pristine light purple theme from attached screenshot) */
+  --bg-app: #f8fafc;            /* Clean modern Slate-50 background */
+  --bg-panel: #ffffff;          /* White sidebar, headers, and form wrappers */
+  --bg-card: #ffffff;           /* Clean white cards and panels */
+  --bg-input: #f1f5f9;          /* Slate-100 inputs and lists */
+  --border-color: #e2e8f0;      /* Clean subtle slate border */
+  
+  --text-primary: #0f172a;      /* Deep Slate-900 for main titles and text */
+  --text-secondary: #334155;    /* Slate-700 for subheadings and lists */
+  --text-muted: #64748b;        /* Slate-500 for captions and description */
+  
+  --accent-bg: #7c3aed;         /* Vibrant purple (violet-600) as primary light-mode accent */
+  --accent-text: #ffffff;       /* Soft crisp white text for purple elements */
+  --accent-hover: #6d28d9;      /* Darker violet-700 for hover elements */
+  
+  --purple-glow: #f3e8ff;       /* Soft lavender purple-100 */
+  --glass-panel-bg: rgba(255, 255, 255, 0.85);
+  --glass-card-bg: rgba(255, 255, 255, 0.75);
+  --glass-input-bg: rgba(241, 245, 249, 0.85);
+  --glow-color: rgba(124, 58, 237, 0.05);
+
+  /* Sidebar variables mapping for pristine light purple screenshot navigation */
+  --bg-sidebar: #ffffff;
+  --text-sidebar: #475569;
+  --bg-sidebar-active: #f3e8ff;
+  --text-sidebar-active: #7c3aed;
+
+  /* Dynamic accent-emerald mapping to translate green to vibrant purple in light theme */
+  --accent-emerald-850: #6d28d9;
+  --accent-emerald-800: #7c3aed;
+  --accent-emerald-700: #6d28d9;
+  --accent-emerald-600: #7c3aed;
+  --accent-emerald-500: #8b5cf6;
+  --accent-emerald-400: #a78bfa;
+  --accent-emerald-300: #c084fc;
+  --accent-amber-300: #f3e8ff;
+}
+
+/* ============================================================
+   2. TAILWIND V4 CONFIGURATION MAPPING & ACCENT HARMONIZATION
+   ============================================================ */
+@theme {
+  --font-sans: "Inter", "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Dynamically rebind all purple variables so standard elements align with the theme */
+  --color-purple-600: var(--accent-bg);
+  --color-purple-500: var(--accent-hover);
+  --color-purple-400: var(--text-primary);
+  --color-purple-300: var(--text-secondary);
+
+  /* Dynamically map emerald to adapt between spruce green (dark) and vibrant purple (light) */
+  --color-emerald-900: var(--accent-emerald-850);
+  --color-emerald-850: var(--accent-emerald-850);
+  --color-emerald-800: var(--accent-emerald-800);
+  --color-emerald-700: var(--accent-emerald-700);
+  --color-emerald-600: var(--accent-emerald-600);
+  --color-emerald-500: var(--accent-emerald-500);
+  --color-emerald-400: var(--accent-emerald-400);
+  --color-emerald-300: var(--accent-emerald-300);
+  
+  /* Map amber-300 to adapt to light lavender in light mode */
+  --color-amber-300: var(--accent-amber-300);
+}
+
+/* ============================================================
+   3. ROBUST UTILITY OVERRIDES FOR DAY/NIGHT FLEXIBILITY
+   ============================================================ */
+@utility glass-panel {
+  background: var(--glass-panel-bg) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 10px 30px -10px var(--glow-color);
+}
+
+@utility glass-card {
+  background: var(--glass-card-bg) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color) !important;
+}
+
+@utility glass-card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card-hover:hover {
+  background: var(--bg-card) !important;
+  border-color: var(--text-secondary) !important;
+  box-shadow: 0 12px 35px -10px var(--glow-color);
+  transform: translateY(-2px);
+}
+
+@utility glass-input {
+  background: var(--glass-input-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ============================================================
+   4. SYSTEM-WIDE CORE ELEMENT & LAYOUT RESETS
+   ============================================================ */
+body, #root {
+  background-color: var(--bg-app) !important;
+  color: var(--text-primary) !important;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Outer layout sections, sidebars, headers */
+aside, header {
+  background-color: var(--bg-panel) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Common list boxes, dashboard tables, and panels */
+.bg-slate-50, .bg-\[\#0F172A\], .bg-zinc-900, .bg-zinc-900\/20, .bg-[#0F172A] {
+  background-color: var(--bg-app) !important;
+}
+
+.bg-\[\#161b26\]\/70, .bg-\[\#161b26\], .bg-\[\#181f30\], .bg-zinc-950, .bg-slate-900\/20 {
+  background-color: var(--bg-panel) !important;
+  border-color: var(--border-color) !important;
+}
+
+.bg-\[\#131926\]\/40, .bg-\[\#131926\], .bg-slate-900 {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Master border overrides for complete alignment */
+.border-\[\#232a3b\], 
+.border-zinc-800, 
+.border-\[\#1e293b\], 
+.border-\[\#1d2433\], 
+.border-zinc-850, 
+.border-slate-200\/10, 
+.dark\:border-white\/10, 
+.border-zinc-700,
+.border-zinc-900 {
+  border-color: var(--border-color) !important;
+}
+
+/* Dynamic form inputs, dropdown selectors, and input boxes */
+input, select, textarea, .glass-input {
+  background-color: var(--bg-input) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+  transition: all 0.2s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--text-primary) !important;
+  outline: none;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 0.6;
+}
+
+/* Text & Typography standardizations */
+h1, h2, h3, h4, h5, h6, .text-white, .text-foreground, .font-black, .text-zinc-100, .text-slate-100 {
+  color: var(--text-primary) !important;
+}
+
+.text-zinc-400, .text-muted-foreground, .text-zinc-500, .text-zinc-300, .text-slate-400, .text-zinc-600, .text-\[\#b8c9bc\] {
+  color: var(--text-muted) !important;
+}
+
+.text-purple-400, .text-purple-500 {
+  color: var(--text-secondary) !important;
+}
+
+/* Sidebar Navigation Buttons */
+nav button, nav.space-y-1\.5 button {
+  color: var(--text-muted) !important;
+  transition: all 0.2s ease;
+}
+
+nav button:hover, nav.space-y-1\.5 button:hover {
+  background-color: var(--purple-glow) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Highlighted active page item */
+nav button.bg-purple-600, nav.space-y-1\.5 button.bg-purple-600 {
+  background-color: var(--accent-bg) !important;
+  color: var(--accent-text) !important;
+  font-weight: 800 !important;
+}
+
+/* Primary Form Submit/Action buttons */
+button.bg-purple-600, .bg-purple-600 {
+  background-color: var(--accent-bg) !important;
+  color: var(--accent-text) !important;
+  border: 1px solid var(--border-color) !important;
+  transition: all 0.2s ease;
+}
+
+button.bg-purple-600:hover, .bg-purple-600:hover {
+  background-color: var(--accent-hover) !important;
+  opacity: 0.95;
+}
+
+/* Ensure all SVG icon paths adopt current stroke color */
+.lucide, svg {
+  stroke: currentColor !important;
+}
+
+/* Maintain soft notification backgrounds and metrics status */
+.bg-emerald-500\/10 { background-color: rgba(16, 185, 129, 0.12) !important; }
+.bg-amber-500\/10 { background-color: rgba(245, 158, 11, 0.12) !important; }
+.bg-rose-500\/10 { background-color: rgba(244, 63, 94, 0.12) !important; }
+.bg-purple-500\/10 { background-color: var(--purple-glow) !important; }
+
+/* Modal containers overlay customizer */
+.glass-panel.relative, .theme-modal, .relative.w-full.max-w-2xl.border, .relative.w-full.max-w-md, .relative.w-full.max-w-xl, .relative.w-full.max-w-4xl {
+  background-color: var(--bg-panel) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Selection */
+::selection {
+  background: var(--text-muted);
+  color: var(--bg-app);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted) !important;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-primary) !important;
+}
