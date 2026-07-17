@@ -64,6 +64,7 @@ export default function App() {
   const [liveTime, setLiveTime] = useState("");
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [menuSearchTerm, setMenuSearchTerm] = useState("");
   const [expandedSubmenus, setExpandedSubmenus] = useState<Record<string, boolean>>({
     "tracking-group": true,
@@ -592,6 +593,7 @@ export default function App() {
     }
     setCurrentPage(page);
     setSearchTerm("");
+    setMobileSidebarOpen(false);
   };
 
   return (
@@ -712,6 +714,182 @@ export default function App() {
             animate={{ opacity: 1 }}
             className="flex min-h-screen relative bg-[var(--bg-app)]"
           >
+            {/* Mobile Sidebar Overlay (Slide-out drawer from left) */}
+            <AnimatePresence>
+              {mobileSidebarOpen && (
+                <>
+                  {/* Backdrop */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setMobileSidebarOpen(false)}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 lg:hidden"
+                  />
+
+                  {/* Drawer Content */}
+                  <motion.div
+                    initial={{ x: "-100%" }}
+                    animate={{ x: 0 }}
+                    exit={{ x: "-100%" }}
+                    transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                    className="fixed top-0 left-0 bottom-0 w-72 max-w-[85vw] h-screen bg-[var(--bg-sidebar)] text-[var(--text-sidebar)] flex flex-col justify-between p-5 border-r border-slate-200/10 dark:border-white/10 z-50 lg:hidden overflow-y-auto"
+                    style={{ backgroundColor: "var(--bg-sidebar)", color: "var(--text-sidebar)" }}
+                  >
+                    <div className="space-y-5">
+                      {/* Brand Logo & Close Button */}
+                      <div className="flex items-center justify-between py-1">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 bg-[#7c3aed] border border-purple-500/20 rounded-xl flex items-center justify-center text-white">
+                            <BookOpen className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h2 className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">WIS P&P</h2>
+                            <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest font-bold">Governance Hub</span>
+                          </div>
+                        </div>
+
+                        <button 
+                          onClick={() => setMobileSidebarOpen(false)}
+                          className="p-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-panel)]/40 text-[var(--text-primary)] hover:bg-rose-500/10 hover:text-rose-400 transition-all cursor-pointer"
+                          title="Close Sidebar"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Sidebar Search - Filter Menus */}
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" />
+                        <input 
+                          type="text" 
+                          placeholder="Quick filter menu..."
+                          value={menuSearchTerm}
+                          onChange={(e) => setMenuSearchTerm(e.target.value)}
+                          className="w-full pl-8 pr-4 py-1.5 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl text-[11px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-bg)] transition-colors"
+                        />
+                        {menuSearchTerm && (
+                          <button 
+                            onClick={() => setMenuSearchTerm("")}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Main Navigation List */}
+                      <nav className="space-y-1.5 text-xs font-semibold">
+                        {[
+                          {
+                            id: "library",
+                            name: "Policy Library",
+                            icon: BookOpen
+                          },
+                          {
+                            id: "settings",
+                            name: "Settings Panel",
+                            icon: SettingsIcon
+                          }
+                        ].filter(item => {
+                          if (!menuSearchTerm) return true;
+                          return item.name.toLowerCase().includes(menuSearchTerm.toLowerCase());
+                        }).map(item => {
+                          const IconComp = item.icon;
+
+                          return (
+                            <div key={item.id} className="space-y-1">
+                              <button
+                                onClick={() => handleSidebarNavigate(item.id)}
+                                className={`w-full px-3 py-2 rounded-xl flex items-center gap-2.5 transition-all cursor-pointer ${
+                                  currentPage === item.id 
+                                    ? "font-bold shadow-sm" 
+                                    : "text-[var(--text-sidebar)] hover:bg-[var(--purple-glow)] hover:text-[var(--text-primary)]"
+                                }`}
+                                style={currentPage === item.id ? { backgroundColor: "var(--bg-sidebar-active)", color: "var(--text-sidebar-active)" } : {}}
+                              >
+                                <IconComp className="w-4 h-4 shrink-0" />
+                                <span>{item.name}</span>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </nav>
+
+                      {/* Reset Database Button */}
+                      <div className="pt-2 border-t border-[var(--border-color)]/30">
+                        <button
+                          onClick={() => {
+                            handleResetDatabase();
+                            if (resetConfirm) {
+                              setMobileSidebarOpen(false);
+                            }
+                          }}
+                          className={`w-full px-3 py-2 rounded-xl flex items-center transition-all cursor-pointer text-xs font-bold ${
+                            resetConfirm 
+                              ? "bg-rose-500 text-white font-bold animate-pulse shadow-md" 
+                              : "text-rose-500/80 hover:bg-rose-500/10 border border-rose-500/10 hover:border-rose-500/30"
+                          }`}
+                          title={resetConfirm ? "Click again to confirm deleting all policy records" : "Reset Library"}
+                        >
+                          <Trash2 className={`w-4 h-4 shrink-0 mr-2.5 ${resetConfirm ? "animate-bounce" : ""}`} />
+                          <span>{resetConfirm ? "Confirm Reset?" : "Reset Library"}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Sidebar Footer segment */}
+                    <div className="border-t border-[var(--border-color)] pt-4 flex flex-col gap-3 mt-auto">
+                      {/* Profile section */}
+                      <div className="flex items-center justify-between text-xs px-1">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-xl bg-[var(--accent-bg)] text-[var(--accent-text)] flex items-center justify-center font-black shrink-0 shadow-sm">
+                            {username[0].toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-bold truncate block text-[var(--text-primary)] leading-tight">{username}</span>
+                            <span className="text-[9px] text-[var(--text-muted)] block font-mono capitalize">{userRole} role</span>
+                          </div>
+                        </div>
+
+                        <button 
+                          onClick={() => {
+                            setMobileSidebarOpen(false);
+                            handleLogout();
+                          }}
+                          className="p-1.5 hover:bg-rose-500/10 text-[var(--text-muted)] hover:text-rose-400 rounded-lg transition-all cursor-pointer"
+                          title="Disconnect Sandbox Session"
+                        >
+                          <LogOut className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Appearance mode toggle switch */}
+                      <div className="flex items-center justify-between p-1.5 bg-[var(--bg-input)] rounded-xl border border-[var(--border-color)]">
+                        <span className="text-[10px] text-[var(--text-muted)] font-bold uppercase pl-1.5">Appearance</span>
+                        <button 
+                          onClick={toggleTheme}
+                          className="p-1 px-2.5 text-[10px] bg-[var(--accent-bg)]/10 text-[var(--accent-bg)] border border-[var(--accent-bg)]/20 rounded-lg font-bold flex items-center gap-1 cursor-pointer hover:bg-[var(--accent-bg)]/20 transition-all"
+                        >
+                          {theme === "dark" ? (
+                            <>
+                              <Sun className="w-3 h-3" />
+                              <span>Light Mode</span>
+                            </>
+                          ) : (
+                            <>
+                              <Moon className="w-3 h-3" />
+                              <span>Dark Mode</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+
             {/* Sidebar Rail */}
             <aside 
               className={`shrink-0 hidden lg:flex flex-col justify-between sticky top-0 h-screen border-r border-slate-200/10 dark:border-white/10 transition-all duration-300 z-40 ${
@@ -903,9 +1081,18 @@ export default function App() {
             {/* Main view viewport */}
             <main className="flex-1 flex flex-col min-h-screen overflow-x-hidden bg-[var(--bg-app)]">
               {/* Header top row bar */}
-              <header className="px-6 py-4 flex items-center justify-between sticky top-0 z-30 border-b border-[var(--border-color)] bg-[var(--bg-app)]/85 backdrop-blur-md">
+              <header className="px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-30 border-b border-[var(--border-color)] bg-[var(--bg-app)]/85 backdrop-blur-md gap-3">
+                {/* Mobile sidebar trigger */}
+                <button
+                  onClick={() => setMobileSidebarOpen(true)}
+                  className="lg:hidden p-2 rounded-xl text-muted-foreground hover:text-foreground transition-all cursor-pointer border border-[var(--border-color)] bg-[var(--bg-panel)]/40 hover:bg-[var(--purple-glow)]/10 shrink-0"
+                  title="Open Navigation Menu"
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
+
                 {/* Search query inputs bar */}
-                <div className="relative max-w-sm w-full hidden md:block">
+                <div className="relative max-w-sm w-full hidden sm:block">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                   <input 
                     type="text" 
