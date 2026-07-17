@@ -81,7 +81,12 @@ export default function Settings({
           coverDept: p.coverDept || p.department || "General",
           coverYear: p.coverYear || p.year || new Date().getFullYear().toString(),
           coverColor: p.coverColor || "#4a4a4a",
-          coverIcon: p.coverIcon || "finance"
+          coverIcon: p.coverIcon || "finance",
+          createdDate: p.createdDate || new Date().toISOString().split("T")[0],
+          updatedDate: p.updatedDate || new Date().toISOString().split("T")[0],
+          documents: p.documents || [],
+          procedures: p.procedures || [],
+          forms: p.forms || []
         }));
 
         onImportPolicies(sanitized);
