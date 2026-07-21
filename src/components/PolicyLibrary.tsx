@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
-  Grid, List, Plus, Search, BookOpen, Edit2, Trash2, 
+  Grid, List, Plus, Search, BookOpen, Edit2, Trash2, ArrowUpDown, 
   Paintbrush, Paperclip, Calendar, User, FileText, 
   SlidersHorizontal, CheckCircle, Shield, AlertTriangle, 
   HelpCircle, UploadCloud, X, Check, Eye, Cloud, ExternalLink, QrCode,
@@ -23,7 +23,21 @@ const PRESET_COLORS = [
   { name: "Crimson Velvet", hex: "#6b1a2a" },
   { name: "Imperial Violet", hex: "#7B337E" },
   { name: "Slate Blue", hex: "#1a3a6b" },
-  { name: "Charcoal", hex: "#2e2e2e" },
+  { name: "Charcoal Gray", hex: "#2e2e2e" },
+  { name: "Teal Dream", hex: "#0d9488" },
+  { name: "Royal Sapphire", hex: "#2563eb" },
+  { name: "Warm Copper", hex: "#ca6a1f" },
+  { name: "Wine Burgundy", hex: "#881337" },
+  { name: "Olive Moss", hex: "#3f6212" },
+  { name: "Electric Indigo", hex: "#4f46e5" },
+  { name: "Rose Quartz", hex: "#be185d" },
+  { name: "Ocean Breeze", hex: "#0284c7" },
+  { name: "Deep Plum", hex: "#581c87" },
+  { name: "Sunset Rust", hex: "#9a3412" },
+  { name: "Midnight Onyx", hex: "#0f172a" },
+  { name: "Sage Jade", hex: "#15803d" },
+  { name: "Velvet Rose", hex: "#9f1239" },
+  { name: "Antique Gold", hex: "#a16207" }
 ];
 
 // Preset Icons for Cover Generator
@@ -72,16 +86,20 @@ export default function PolicyLibrary({
   userRole = "admin"
 }: PolicyLibraryProps) {
   const [view, setView] = useState<"grid" | "list" | "folder">("grid");
+  const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [deptFilter, setDeptFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [yearFilter, setYearFilter] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [sortBy, setSortBy] = useState<"effectiveDate" | "department" | "title">("title");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Modal Control
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<Partial<Policy> | null>(null);
   const [activeQRLink, setActiveQRLink] = useState<{ url: string; title: string } | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -92,7 +110,7 @@ export default function PolicyLibrary({
     effectiveDate: "",
     year: new Date().getFullYear().toString(),
     version: "1.0",
-    status: "Draft" as PolicyStatus,
+    status: "Approved" as PolicyStatus,
     description: "",
     oneDriveLink: "", // Connected OneDrive Tracking Link
     // Cover settings
@@ -132,9 +150,9 @@ export default function PolicyLibrary({
   const [newFormField, setNewFormField] = useState("");
   const [newFormFieldsList, setNewFormFieldsList] = useState<string[]>([]);
 
-  // Filtered Policies
+  // Filtered and Sorted Policies
   const filteredPolicies = useMemo(() => {
-    return policies.filter(p => {
+    const filtered = policies.filter(p => {
       const matchDept = !deptFilter || p.department === deptFilter;
       const matchStatus = !statusFilter || p.status === statusFilter;
       const matchYear = !yearFilter || p.year === yearFilter;
@@ -145,7 +163,25 @@ export default function PolicyLibrary({
         p.description.toLowerCase().includes(searchTerm.toLowerCase());
       return matchDept && matchStatus && matchYear && matchSearch;
     });
-  }, [policies, deptFilter, statusFilter, yearFilter, searchTerm]);
+
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === "effectiveDate") {
+        const dateA = a.effectiveDate || "";
+        const dateB = b.effectiveDate || "";
+        comparison = dateA.localeCompare(dateB);
+      } else if (sortBy === "department") {
+        const deptA = a.department || "";
+        const deptB = b.department || "";
+        comparison = deptA.localeCompare(deptB);
+      } else {
+        const titleA = a.title || "";
+        const titleB = b.title || "";
+        comparison = titleA.localeCompare(titleB);
+      }
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+  }, [policies, deptFilter, statusFilter, yearFilter, searchTerm, sortBy, sortOrder]);
 
   // Unique Years for Filter
   const availableYears = useMemo(() => {
@@ -162,7 +198,7 @@ export default function PolicyLibrary({
       effectiveDate: new Date().toISOString().split("T")[0],
       year: currentYear,
       version: "1.0",
-      status: "Draft",
+      status: "Approved",
       description: "",
       oneDriveLink: "",
       coverTitle: "",
@@ -238,8 +274,8 @@ export default function PolicyLibrary({
     e.preventDefault();
     if (!formData.title || !formData.department || !formData.owner) return;
 
-    const onedriveLinkObj = externalLinks.find(link => link.type === "OneDrive");
-    const resolvedOneDriveLink = onedriveLinkObj ? onedriveLinkObj.url : formData.oneDriveLink;
+    const firstLinkObj = externalLinks.find(link => link.url && link.url.trim() !== "");
+    const resolvedOneDriveLink = formData.oneDriveLink.trim() !== "" ? formData.oneDriveLink : (firstLinkObj ? firstLinkObj.url : "");
 
     onSavePolicy({
       ...(editingPolicy?.id ? { id: editingPolicy.id } : {}),
@@ -496,6 +532,29 @@ export default function PolicyLibrary({
             {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
 
+          <span className="w-[1px] h-4 bg-[var(--border-color)] hidden sm:block" />
+
+          {/* Sorting Dropdown */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-muted-foreground font-bold uppercase hidden xl:inline-block">Sort:</span>
+            <select 
+              value={sortBy} 
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="px-3 py-2 border border-[var(--border-color)] rounded-xl text-xs text-muted-foreground font-semibold focus:outline-none focus:border-emerald-600 bg-[var(--bg-panel)] cursor-pointer"
+            >
+              <option value="title">Title Policy</option>
+              <option value="effectiveDate">Effective Date</option>
+              <option value="department">Department</option>
+            </select>
+            <button
+              onClick={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
+              className="p-2 border border-[var(--border-color)] hover:border-emerald-500/30 rounded-xl bg-[var(--bg-panel)] text-muted-foreground hover:text-emerald-500 transition-all cursor-pointer flex items-center justify-center h-8 w-8 shrink-0"
+              title={sortOrder === "asc" ? "Sort Ascending" : "Sort Descending"}
+            >
+              <ArrowUpDown className={`w-3.5 h-3.5 transition-transform duration-200 ${sortOrder === "desc" ? "rotate-180 text-emerald-500" : ""}`} />
+            </button>
+          </div>
+
           <SlidersHorizontal className="w-4 h-4 text-muted-foreground hidden lg:block" />
         </div>
       </div>
@@ -593,6 +652,7 @@ export default function PolicyLibrary({
                   >
                     {activePolicies.map((p) => {
                        const coverColor = p.coverColor || "#7B337E";
+                       const isHovered = hoveredCardId === p.id;
                        const statusClass = 
                          p.status === 'Draft' ? 'border-zinc-800 text-zinc-400 bg-zinc-900/40' :
                          p.status === 'Under Review' ? 'border-amber-500/20 text-amber-400 bg-amber-500/5' :
@@ -609,35 +669,113 @@ export default function PolicyLibrary({
                            exit={{ opacity: 0, scale: 0.95 }}
                            transition={{ duration: 0.25 }}
                            onClick={() => onSelectPolicy(p.id)}
-                           className={`rounded-2xl overflow-hidden cursor-pointer border border-[var(--border-color)] bg-[var(--bg-card)] hover:shadow-xl hover:border-emerald-500/30 transition-all flex ${view === 'list' ? 'flex-row items-stretch p-4 gap-5' : 'flex-col h-[420px]'}`}
+                           onMouseEnter={() => setHoveredCardId(p.id)}
+                           onMouseLeave={() => setHoveredCardId(null)}
+                           className={`rounded-2xl overflow-hidden cursor-pointer border bg-[var(--bg-card)] hover:shadow-xl transition-all duration-300 flex ${view === 'list' ? 'flex-row items-stretch p-4 gap-5' : 'flex-col h-[320px]'}`}
+                           style={{
+                             borderColor: isHovered ? coverColor : 'var(--border-color)',
+                             boxShadow: isHovered ? `0 12px 24px -6px ${coverColor}25, 0 8px 16px -8px ${coverColor}20` : undefined,
+                             backgroundColor: isHovered ? `${coverColor}05` : 'var(--bg-card)'
+                           }}
                          >
                            {/* Grid/Folder List Cover */}
                             {view !== 'list' ? (
-                             <div className="h-48 relative overflow-hidden flex items-center justify-center border-b border-[var(--border-color)] bg-gradient-to-b from-black/[0.03] to-black/[0.09]" style={{ background: `${coverColor}08` }}>
-                               <div className="relative group/book">
-                                 {/* Simulated paper page stack underneath */}
-                                 <div className="absolute left-1.5 top-1 bottom-1 w-[130px] bg-neutral-100 dark:bg-zinc-800 border-r border-y border-neutral-300 dark:border-zinc-700 rounded-r-md shadow-md translate-x-3 rotate-[1.5deg] -z-10" />
-                                 <div className="absolute left-1 top-2 bottom-2 w-[130px] bg-white dark:bg-zinc-900 border-r border-y border-neutral-200 dark:border-zinc-800 rounded-r-md shadow-sm translate-x-4 rotate-[3deg] -z-10" />
+                             <div 
+                               className="h-[175px] relative overflow-hidden flex items-center justify-center border-b transition-all duration-300" 
+                               style={{ 
+                                 background: `linear-gradient(135deg, ${coverColor}18, ${coverColor}05)`,
+                                 borderBottomColor: `${coverColor}20`
+                               }}
+                             >
+                               {/* Ambient colored glowing aura behind the book */}
+                               <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30 dark:opacity-45">
+                                 <div 
+                                   className="w-28 h-28 rounded-full blur-2xl transition-all duration-500 scale-125"
+                                   style={{ 
+                                     backgroundColor: coverColor,
+                                     transform: isHovered ? 'scale(1.3)' : 'scale(1)'
+                                   }} 
+                                 />
+                               </div>
+
+                               {/* Elegant bookstore library shelf line */}
+                               <div className="absolute bottom-0 inset-x-0 h-1 bg-white/[0.04] backdrop-blur-sm border-t border-white/5" />
+
+                               <div className="relative group/book mt-1" style={{ perspective: '1000px' }}>
+                                 {/* Silk Bookmark Ribbon */}
+                                 <div 
+                                   className="absolute bottom-[-12px] left-[32px] w-2 h-6 bg-amber-500/95 rounded-b shadow transition-all duration-300 origin-top z-10"
+                                   style={{
+                                     transform: isHovered 
+                                       ? 'rotate(8deg) translateZ(8px) translateY(1px)' 
+                                       : 'rotate(2deg) translateZ(-4px)',
+                                   }}
+                                 />
+
+                                 {/* Realistic 3D paper page stack underneath - Outer page edge */}
+                                 <div 
+                                   className="absolute top-1 bottom-1 w-[114px] rounded-r bg-neutral-100 dark:bg-zinc-800 border-r border-y border-neutral-300 dark:border-zinc-700 transition-all duration-300"
+                                   style={{
+                                     transformStyle: 'preserve-3d',
+                                     transform: isHovered
+                                       ? 'rotateY(-18deg) rotateX(6deg) translateZ(4px) translateX(11px) scaleY(0.99)'
+                                       : 'rotateY(-8deg) rotateX(3deg) translateZ(-5px) translateX(6px)',
+                                     boxShadow: 'inset -2px 0 5px rgba(0,0,0,0.15)'
+                                   }}
+                                 >
+                                   {/* Page line pattern for realism */}
+                                   <div className="absolute inset-y-0 right-0 w-3 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.06)_50%)] bg-[size:100%_4px] opacity-70 rounded-r" />
+                                 </div>
+
+                                 {/* Inner page edge layer for extra thickness */}
+                                 <div 
+                                   className="absolute top-2 bottom-2 w-[112px] rounded-r bg-white dark:bg-zinc-900 border-r border-y border-neutral-250 dark:border-zinc-755 transition-all duration-300"
+                                   style={{
+                                     transformStyle: 'preserve-3d',
+                                     transform: isHovered
+                                       ? 'rotateY(-14deg) rotateX(6deg) translateZ(8px) translateX(14px) scaleY(0.98)'
+                                       : 'rotateY(-6deg) rotateX(3deg) translateZ(-10px) translateX(10px)',
+                                   }}
+                                 >
+                                   {/* Page line pattern */}
+                                   <div className="absolute inset-y-0 right-0 w-2 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.06)_50%)] bg-[size:100%_4px] opacity-50 rounded-r" />
+                                 </div>
 
                                  {/* Primary Book bound cover */}
                                  <div 
-                                   className="w-[130px] h-[175px] rounded-r-lg shadow-2xl relative overflow-hidden flex flex-col justify-between p-4 text-white transition-all duration-300 transform group-hover/book:scale-[1.05] group-hover/book:-translate-y-1 group-hover/book:rotate-[-1.5deg]" 
-                                   style={{ backgroundColor: coverColor }}
+                                   className="w-[116px] h-[152px] rounded-r shadow-2xl relative overflow-hidden flex flex-col justify-between p-3 text-white transition-all duration-300 select-none" 
+                                   style={{ 
+                                     backgroundColor: coverColor,
+                                     transformStyle: 'preserve-3d',
+                                     transform: isHovered 
+                                       ? 'rotateY(-24deg) rotateX(6deg) translateZ(12px) scale(1.05)' 
+                                       : 'rotateY(-12deg) rotateX(3deg) translateZ(0px)',
+                                     boxShadow: isHovered 
+                                       ? `18px 12px 28px -4px rgba(0,0,0,0.4), -4px 4px 12px -3px ${coverColor}50` 
+                                       : `8px 6px 14px -4px rgba(0,0,0,0.3), -1px 2px 6px -4px ${coverColor}20`
+                                   }}
                                  >
                                    {/* Left book joint crease shading */}
-                                   <div className="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-black/25 via-black/10 to-transparent shadow-inner" />
-                                   <div className="absolute left-3 top-0 bottom-0 w-[1px] bg-white/10" />
+                                   <div className="absolute left-0 top-0 bottom-0 w-2.5 bg-gradient-to-r from-black/35 via-black/10 to-transparent pointer-events-none" />
+                                   <div className="absolute left-2.5 top-0 bottom-0 w-[1px] bg-white/10" />
+                                   <div className="absolute left-3 top-0 bottom-0 w-[1px] bg-black/15" />
+                                   
+                                   {/* Embossed gold/silver premium highlights on hover */}
+                                   <div 
+                                     className="absolute right-0 top-0 bottom-0 w-[2px] bg-white/20 transition-opacity duration-300"
+                                     style={{ opacity: isHovered ? 0.4 : 0 }}
+                                   />
                                    
                                    {/* Gloss sheen overlay */}
-                                   <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/[0.03] to-white/[0.09] pointer-events-none" />
+                                   <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/[0.04] to-white/[0.12] pointer-events-none" />
 
                                    <div className="space-y-1 relative z-10">
-                                     <span className="text-[7px] font-black uppercase tracking-wider bg-black/25 px-1.5 py-0.5 rounded inline-block text-amber-200">{p.department}</span>
-                                     <h4 className="text-[10px] font-black line-clamp-4 leading-normal tracking-tight text-white drop-shadow-md">{p.coverTitle || p.title}</h4>
+                                     <span className="text-[7px] font-black uppercase tracking-wider bg-black/30 px-1.5 py-0.5 rounded inline-block text-amber-200 border border-white/5">{p.department}</span>
+                                     <h4 className="text-[10px] font-black line-clamp-3 leading-normal tracking-tight text-white drop-shadow-md mt-1">{p.coverTitle || p.title}</h4>
                                    </div>
                                    
-                                   <div className="flex items-center justify-between border-t border-white/20 pt-2 mt-auto text-[8px] font-mono relative z-10">
-                                     <span className="font-bold">{p.code}</span>
+                                   <div className="flex items-center justify-between border-t border-white/20 pt-1 mt-auto text-[8px] font-mono relative z-10">
+                                     <span className="font-bold tracking-wider">{p.code}</span>
                                      <span>v{p.version}</span>
                                    </div>
                                  </div>
@@ -645,14 +783,17 @@ export default function PolicyLibrary({
                              </div>
                             ) : (
                              /* List view Cover */
-                             <div className="relative shrink-0 flex items-center justify-center py-1">
+                             <div className="relative shrink-0 flex items-center justify-center py-1 px-2">
                                {/* Miniature page stack under */}
-                               <div className="absolute left-1 top-0.5 bottom-0.5 w-12 bg-neutral-200 dark:bg-zinc-850 rounded-r-md translate-x-2.5 rotate-[1deg] -z-10" />
+                               <div className="absolute left-1 top-0.5 bottom-0.5 w-12 bg-neutral-200 dark:bg-zinc-800 rounded-r-md translate-x-2.5 rotate-[1deg] -z-10" />
                                <div 
-                                 className="w-12 h-[76px] rounded-r-md shadow-lg relative overflow-hidden flex flex-col justify-between p-2 text-white" 
-                                 style={{ backgroundColor: coverColor }}
-                               >
-                                 <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-r from-black/25 via-black/10 to-transparent" />
+                                 className="w-12 h-[76px] rounded-r shadow-lg relative overflow-hidden flex flex-col justify-between p-2 text-white transition-transform duration-300" 
+                                 style={{ 
+                                   backgroundColor: coverColor,
+                                   transform: isHovered ? 'scale(1.05) translateY(-2px)' : 'none'
+                                 }}
+                                >
+                                 <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-r from-black/25 via-black/10 to-transparent pointer-events-none" />
                                  <div className="text-[6px] uppercase font-black tracking-wider truncate opacity-85 text-amber-200">{p.department}</div>
                                  <h4 className="text-[8px] font-black line-clamp-2 leading-none text-white drop-shadow-sm mt-0.5">{p.coverTitle || p.title}</h4>
                                  <div className="text-[6px] font-mono opacity-85 mt-auto flex justify-between">
@@ -663,106 +804,122 @@ export default function PolicyLibrary({
                             )}
 
                             {/* Info Section */}
-                            <div className={`flex-1 flex flex-col justify-between ${view === 'list' ? 'p-1 gap-2' : 'p-4 h-[210px]'}`}>
+                            <div className={`flex-1 flex flex-col justify-between ${view === 'list' ? 'p-1 gap-2' : 'p-4 h-[145px]'}`}>
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between gap-2">
-                                  <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wide bg-emerald-500/10 px-2 py-0.5 rounded">{p.category}</span>
+                                  <span 
+                                    className="text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded"
+                                    style={{
+                                      backgroundColor: `${coverColor}15`,
+                                      color: coverColor
+                                    }}
+                                  >
+                                    {p.category}
+                                  </span>
                                   <span className={`text-[9px] font-black px-2 py-0.5 border rounded-full uppercase tracking-wider ${statusClass}`}>
                                     {p.status}
                                   </span>
                                 </div>
-                                <h3 className={`font-bold text-foreground line-clamp-1 group-hover:text-emerald-600 transition-colors ${view === 'list' ? 'text-sm mt-0.5' : 'text-xs mt-1.5'}`}>{p.title}</h3>
+                                <h3 
+                                  className={`font-bold transition-colors ${view === 'list' ? 'text-sm mt-0.5' : 'text-xs mt-1.5'}`}
+                                  style={{
+                                    color: isHovered ? coverColor : 'var(--text-primary)'
+                                  }}
+                                >
+                                  {p.title}
+                                </h3>
                                 <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed font-sans">{p.description}</p>
                               </div>
 
-                              {/* Progress bar for book review tracking */}
-                              <div className="space-y-1">
-                                <div className="flex justify-between text-[9px] font-bold text-muted-foreground">
-                                  <span>Compliance Tracker Score</span>
-                                  <span className="font-mono text-emerald-500">{p.complianceScore || 90}% Secure</span>
-                                </div>
-                                <div className="w-full bg-slate-200 dark:bg-zinc-800 h-1 rounded-full overflow-hidden">
-                                  <div className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full" style={{ width: `${p.complianceScore || 90}%` }} />
-                                </div>
-                              </div>
-
                               {/* Actions bar inside card */}
-                              <div className="flex items-center justify-between border-t border-[var(--border-color)] pt-3 text-[11px] text-muted-foreground mt-auto">
+                              <div 
+                                className="flex items-center justify-between border-t pt-2.5 text-[11px] text-muted-foreground mt-auto"
+                                style={{ borderTopColor: `${coverColor}18` }}
+                              >
                                 <div className="flex items-center gap-1.5">
                                   <Calendar className="w-3.5 h-3.5 opacity-60" />
                                   <span>{p.year}</span>
                                 </div>
                                 
                                 <div className="flex items-center gap-2">
-                                  {p.oneDriveLink && (
-                                    <div className="flex items-center gap-1.5">
-                                      <a 
-                                        href={p.oneDriveLink} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="flex items-center gap-1.5 text-[9px] text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 font-bold transition-all bg-emerald-500/10 border border-emerald-500/15 px-2 py-0.5 rounded-lg cursor-pointer"
-                                        title="Open connected OneDrive track file"
-                                      >
-                                        <Cloud className="w-3.5 h-3.5" />
-                                        <span>OneDrive</span>
-                                        <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-                                      </a>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onSelectPolicy(p.id);
+                                    }}
+                                    className="px-2.5 py-1 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer animate-none border"
+                                    style={{
+                                      backgroundColor: `${coverColor}15`,
+                                      borderColor: `${coverColor}25`,
+                                      color: coverColor,
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.backgroundColor = coverColor;
+                                      e.currentTarget.style.color = '#ffffff';
+                                      e.currentTarget.style.borderColor = coverColor;
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.backgroundColor = `${coverColor}15`;
+                                      e.currentTarget.style.color = coverColor;
+                                      e.currentTarget.style.borderColor = `${coverColor}25`;
+                                    }}
+                                    title="Open detailed policy record"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                    <span>View</span>
+                                  </button>
 
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setActiveQRLink({ url: p.oneDriveLink!, title: p.title });
-                                        }}
-                                        className="p-1.5 text-emerald-650 hover:text-emerald-500 hover:bg-emerald-500/10 border border-transparent rounded-lg transition-all cursor-pointer"
-                                        title="Scan Document QR Code on Mobile"
+                                  {userRole !== "user" && (
+                                    <>
+                                      <button 
+                                        onClick={(e) => openEditModal(p, e)}
+                                        className="p-1.5 hover:bg-amber-500/10 text-zinc-400 hover:text-amber-500 border border-transparent hover:border-amber-500/15 rounded-lg transition-all cursor-pointer"
+                                        title="Edit Policy"
                                       >
-                                        <QrCode className="w-3.5 h-3.5" />
+                                        <Edit2 className="w-3.5 h-3.5" />
                                       </button>
-                                    </div>
-                                  )}
 
-                                  <div className="flex items-center gap-1 border-l border-[var(--border-color)] pl-2">
-                                    {/* Explicit View Details Action Button */}
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onSelectPolicy(p.id);
-                                      }}
-                                      className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white border border-emerald-500/15 hover:border-emerald-500 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer"
-                                      title="Open detailed policy reader"
-                                    >
-                                      <Eye className="w-3.5 h-3.5" />
-                                      <span>View</span>
-                                    </button>
-
-                                    {userRole !== "user" && (
-                                      <>
-                                        <button 
-                                          onClick={(e) => openEditModal(p, e)}
-                                          className="p-1.5 hover:bg-amber-500/10 text-zinc-400 hover:text-amber-500 border border-transparent hover:border-amber-500/15 rounded-lg transition-all cursor-pointer"
-                                          title="Edit Policy"
-                                        >
-                                          <Edit2 className="w-3.5 h-3.5" />
-                                        </button>
+                                      {deleteConfirmId === p.id ? (
+                                        <div className="flex items-center gap-1">
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              onDeletePolicy(p.id);
+                                              setDeleteConfirmId(null);
+                                            }}
+                                            className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-black text-[9px] rounded-md transition-all cursor-pointer shadow-sm shadow-rose-950/25 border border-rose-700 animate-none"
+                                            title="Confirm Deletion"
+                                          >
+                                            Confirm
+                                          </button>
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setDeleteConfirmId(null);
+                                            }}
+                                            className="px-1.5 py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white rounded-md transition-all cursor-pointer text-[9px] font-black"
+                                            title="Cancel"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      ) : (
                                         <button 
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            if (confirm(`Are you sure you want to delete policy ${p.title}?`)) {
-                                              onDeletePolicy(p.id);
-                                            }
+                                            setDeleteConfirmId(p.id);
                                           }}
                                           className="p-1.5 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 border border-transparent hover:border-rose-500/15 rounded-lg transition-all cursor-pointer"
                                           title="Delete Policy"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
                                         </button>
-                                      </>
-                                    )}
-                                  </div>
+                                      )}
+                                    </>
+                                  )}
                                 </div>
                               </div>
-                            </div>
+                              </div>
                           </motion.div>
                        );
                     })}
@@ -942,30 +1099,6 @@ export default function PolicyLibrary({
                     </div>
                   </div>
 
-                  {/* Status (Left-aligned, 2 columns layout) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-[var(--text-secondary)]">Status *</label>
-                      <div className="relative">
-                        <select 
-                          required
-                          value={formData.status}
-                          onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as PolicyStatus }))}
-                          className="w-full px-4 py-2.5 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-bg)] transition-all cursor-pointer appearance-none"
-                        >
-                          <option value="Draft" className="bg-[var(--bg-card)] text-[var(--text-primary)]">Draft</option>
-                          <option value="Under Review" className="bg-[var(--bg-card)] text-[var(--text-primary)]">Under Review</option>
-                          <option value="Approved" className="bg-[var(--bg-card)] text-[var(--text-primary)]">Approved</option>
-                          <option value="Archived" className="bg-[var(--bg-card)] text-[var(--text-primary)]">Archived</option>
-                          <option value="Obsolete" className="bg-[var(--bg-card)] text-[var(--text-primary)]">Obsolete</option>
-                        </select>
-                        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#505a6e] text-[8px]">
-                          ▼
-                        </div>
-                      </div>
-                    </div>
-                    <div></div>
-                  </div>
 
                   {/* Description */}
                   <div className="space-y-1.5">
@@ -976,6 +1109,18 @@ export default function PolicyLibrary({
                       value={formData.description}
                       onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                       className="w-full px-4 py-2.5 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 focus:outline-none focus:border-[var(--accent-bg)] transition-all resize-none"
+                    />
+                  </div>
+
+                  {/* Connected Link */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-[var(--text-secondary)]">Connected OneDrive Tracking / File Link</label>
+                    <input 
+                      type="url" 
+                      placeholder="https://onedrive.live.com/... or any shared file link"
+                      value={formData.oneDriveLink}
+                      onChange={(e) => setFormData(prev => ({ ...prev, oneDriveLink: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 focus:outline-none focus:border-[var(--accent-bg)] transition-all"
                     />
                   </div>
                 </div>
@@ -1346,278 +1491,9 @@ export default function PolicyLibrary({
                   </div>
                 </div>
 
-                {/* SECTION 6: STANDARD OPERATING PROCEDURES (SOPS) */}
-                <div className="p-5 border border-[var(--border-color)] bg-[var(--bg-panel)]/40 rounded-2xl space-y-4">
-                  <h4 className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-2 pb-1.5 border-b border-[var(--border-color)]">
-                    <ClipboardList className="w-4 h-4 text-[var(--accent-bg)]" />
-                    LINKED STANDARD OPERATING PROCEDURES (SOPS)
-                  </h4>
 
-                  {/* Existing SOPs */}
-                  {modalProcedures.length > 0 ? (
-                    <div className="space-y-3">
-                      {modalProcedures.map((proc, pIdx) => (
-                        <div key={proc.id || pIdx} className="p-3 bg-[var(--bg-input)]/60 border border-[var(--border-color)] rounded-xl relative space-y-2 text-xs">
-                          <button
-                            type="button"
-                            onClick={() => setModalProcedures(prev => prev.filter((_, i) => i !== pIdx))}
-                            className="absolute top-2.5 right-2.5 p-1 hover:bg-rose-500/10 text-[var(--text-muted)] hover:text-rose-400 rounded-lg transition-all cursor-pointer"
-                            title="Remove SOP"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                          <div className="font-bold text-[var(--text-primary)] pr-6">{proc.title}</div>
-                          {proc.description && <p className="text-[11px] text-[var(--text-muted)]">{proc.description}</p>}
-                          {proc.steps && proc.steps.length > 0 && (
-                            <div className="space-y-1 pl-2 border-l border-[var(--accent-bg)]/30 font-sans">
-                              {proc.steps.map((step, sIdx) => (
-                                <div key={sIdx} className="text-[10px] text-[var(--text-muted)] flex gap-1.5">
-                                  <span className="text-[var(--accent-bg)] font-bold font-mono">{sIdx + 1}.</span>
-                                  <span>{step}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-[11px] text-[var(--text-muted)]">No standard operating procedures linked yet.</p>
-                  )}
 
-                  {/* Add New SOP Form Block */}
-                  <div className="p-4 bg-[var(--bg-card)]/60 border border-[var(--border-color)]/60 rounded-xl space-y-3">
-                    <span className="text-[10px] font-bold text-[var(--accent-bg)] uppercase tracking-wider block">Create New SOP</span>
-                    <div className="space-y-2 text-xs">
-                      <input
-                        type="text"
-                        placeholder="SOP Title (e.g. Verification of Identity)"
-                        value={newSopTitle}
-                        onChange={(e) => setNewSopTitle(e.target.value)}
-                        className="w-full px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 focus:outline-none focus:border-[var(--accent-bg)]"
-                      />
-                      <textarea
-                        rows={2}
-                        placeholder="SOP description of the operational flow..."
-                        value={newSopDesc}
-                        onChange={(e) => setNewSopDesc(e.target.value)}
-                        className="w-full px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 focus:outline-none focus:border-[var(--accent-bg)] resize-none"
-                      />
-                      
-                      {/* Add Step Builder */}
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wide block">Add Step-by-Step Instructions</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="Instruction step..."
-                            value={newSopStep}
-                            onChange={(e) => setNewSopStep(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                if (newSopStep.trim()) {
-                                  setNewSopStepsList(prev => [...prev, newSopStep.trim()]);
-                                  setNewSopStep("");
-                                }
-                              }
-                            }}
-                            className="flex-1 px-3 py-1.5 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 focus:outline-none focus:border-[var(--accent-bg)]"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (newSopStep.trim()) {
-                                setNewSopStepsList(prev => [...prev, newSopStep.trim()]);
-                                setNewSopStep("");
-                              }
-                            }}
-                            className="px-3 py-1.5 bg-[var(--accent-bg)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] rounded-xl font-bold cursor-pointer transition-colors"
-                          >
-                            Add Step
-                          </button>
-                        </div>
 
-                        {newSopStepsList.length > 0 && (
-                          <div className="p-2 bg-[var(--bg-input)]/40 border border-[var(--border-color)] rounded-xl space-y-1">
-                            {newSopStepsList.map((st, idx) => (
-                              <div key={idx} className="flex items-center justify-between text-[11px] text-[var(--text-muted)] border-b border-[var(--border-color)] last:border-0 pb-1">
-                                <span>{idx + 1}. {st}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => setNewSopStepsList(prev => prev.filter((_, i) => i !== idx))}
-                                  className="text-rose-400 font-bold hover:underline cursor-pointer"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={!newSopTitle.trim()}
-                        onClick={() => {
-                          const stepsToSave = newSopStepsList.length > 0 ? newSopStepsList : ["Default operational control check"];
-                          setModalProcedures(prev => [
-                            ...prev,
-                            {
-                              id: "proc-" + Date.now(),
-                              title: newSopTitle.trim(),
-                              description: newSopDesc.trim(),
-                              steps: stepsToSave,
-                              createdDate: new Date().toISOString().split("T")[0]
-                            }
-                          ]);
-                          setNewSopTitle("");
-                          setNewSopDesc("");
-                          setNewSopStepsList([]);
-                        }}
-                        className="w-full py-2 bg-[var(--accent-bg)]/10 hover:bg-[var(--accent-bg)] border border-[var(--border-color)] hover:border-transparent text-[var(--text-primary)] hover:text-[var(--accent-text)] rounded-xl font-bold cursor-pointer transition-all disabled:opacity-50 disabled:pointer-events-none"
-                      >
-                        Link Standard Operating Procedure (SOP)
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* SECTION 7: DIGITAL COMPLIANCE FORMS */}
-                <div className="p-5 border border-[var(--border-color)] bg-[var(--bg-panel)]/40 rounded-2xl space-y-4">
-                  <h4 className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-2 pb-1.5 border-b border-[var(--border-color)]">
-                    <FileText className="w-4 h-4 text-amber-500" />
-                    LINKED DIGITAL COMPLIANCE FORMS
-                  </h4>
-
-                  {/* Existing Forms */}
-                  {modalForms.length > 0 ? (
-                    <div className="space-y-3">
-                      {modalForms.map((f, fIdx) => (
-                        <div key={f.id || fIdx} className="p-3 bg-[var(--bg-input)]/60 border border-[var(--border-color)] rounded-xl relative space-y-2 text-xs">
-                          <button
-                            type="button"
-                            onClick={() => setModalForms(prev => prev.filter((_, i) => i !== fIdx))}
-                            className="absolute top-2.5 right-2.5 p-1 hover:bg-rose-500/10 text-[var(--text-muted)] hover:text-rose-400 rounded-lg transition-all cursor-pointer"
-                            title="Remove Form"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                          <div className="font-bold text-[var(--text-primary)] pr-6">{f.name}</div>
-                          {f.description && <p className="text-[11px] text-[var(--text-muted)]">{f.description}</p>}
-                          {f.fields && f.fields.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 pt-1">
-                              {f.fields.map((field, sIdx) => (
-                                <span key={sIdx} className="text-[9px] bg-[var(--accent-bg)]/10 border border-[var(--accent-bg)]/20 px-2 py-0.5 rounded-md text-[var(--accent-bg)] font-bold uppercase">
-                                  {field}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-[11px] text-[var(--text-muted)]">No digital compliance forms linked yet.</p>
-                  )}
-
-                  {/* Add New Form Template Block */}
-                  <div className="p-4 bg-[var(--bg-card)]/60 border border-[var(--border-color)]/60 rounded-xl space-y-3">
-                    <span className="text-[10px] font-bold text-[var(--accent-bg)] uppercase tracking-wider block">Create New Digital Form</span>
-                    <div className="space-y-2 text-xs">
-                      <input
-                        type="text"
-                        placeholder="Form Name (e.g. Conflict of Interest Declaration)"
-                        value={newFormName}
-                        onChange={(e) => setNewFormName(e.target.value)}
-                        className="w-full px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 focus:outline-none focus:border-[var(--accent-bg)]"
-                      />
-                      <textarea
-                        rows={2}
-                        placeholder="Form description or submission conditions..."
-                        value={newFormDesc}
-                        onChange={(e) => setNewFormDesc(e.target.value)}
-                        className="w-full px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 focus:outline-none focus:border-[var(--accent-bg)] resize-none"
-                      />
-                      
-                      {/* Add Field Builder */}
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wide block">Add Declared Input Fields</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="Input field label (e.g. Employee Full Name)"
-                            value={newFormField}
-                            onChange={(e) => setNewFormField(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                if (newFormField.trim()) {
-                                  setNewFormFieldsList(prev => [...prev, newFormField.trim()]);
-                                  setNewFormField("");
-                                }
-                              }
-                            }}
-                            className="flex-1 px-3 py-1.5 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 focus:outline-none focus:border-[var(--accent-bg)]"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (newFormField.trim()) {
-                                setNewFormFieldsList(prev => [...prev, newFormField.trim()]);
-                                setNewFormField("");
-                              }
-                            }}
-                            className="px-3 py-1.5 bg-[var(--accent-bg)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] rounded-xl font-bold cursor-pointer transition-colors"
-                          >
-                            Add Field
-                          </button>
-                        </div>
-
-                        {newFormFieldsList.length > 0 && (
-                          <div className="p-2 bg-[var(--bg-input)]/40 border border-[var(--border-color)] rounded-xl space-y-1">
-                            {newFormFieldsList.map((fld, idx) => (
-                              <div key={idx} className="flex items-center justify-between text-[11px] text-[var(--text-muted)] border-b border-[var(--border-color)] last:border-0 pb-1">
-                                <span>{fld}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => setNewFormFieldsList(prev => prev.filter((_, i) => i !== idx))}
-                                  className="text-rose-400 font-bold hover:underline cursor-pointer"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={!newFormName.trim()}
-                        onClick={() => {
-                          const fieldsToSave = newFormFieldsList.length > 0 ? newFormFieldsList : ["Employee Signature", "Submission Date"];
-                          setModalForms(prev => [
-                            ...prev,
-                            {
-                              id: "form-" + Date.now(),
-                              name: newFormName.trim(),
-                              description: newFormDesc.trim(),
-                              fields: fieldsToSave,
-                              createdDate: new Date().toISOString().split("T")[0]
-                            }
-                          ]);
-                          setNewFormName("");
-                          setNewFormDesc("");
-                          setNewFormFieldsList([]);
-                        }}
-                        className="w-full py-2 bg-[var(--accent-bg)]/10 hover:bg-[var(--accent-bg)] border border-[var(--border-color)] hover:border-transparent text-[var(--text-primary)] hover:text-[var(--accent-text)] rounded-xl font-bold cursor-pointer transition-all disabled:opacity-50 disabled:pointer-events-none"
-                      >
-                        Link Digital Compliance Form Template
-                      </button>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Actions Row */}
                 <div className="flex justify-end gap-3 border-t border-[var(--border-color)] pt-5 bg-[var(--bg-card)] sticky bottom-0 z-10">

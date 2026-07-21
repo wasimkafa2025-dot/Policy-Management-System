@@ -71,6 +71,7 @@ export default function App() {
   });
 
   const [resetConfirm, setResetConfirm] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     if (resetConfirm) {
@@ -120,7 +121,20 @@ export default function App() {
     }));
   };
 
-  // Load from local storage
+  // Push state to server for auto-sync
+  const pushState = async (payload: { policies?: Policy[]; notifications?: SystemNotification[]; auditLogs?: AuditLog[]; users?: UserAccount[] }) => {
+    try {
+      await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      console.error("Failed to sync with server:", err);
+    }
+  };
+
+  // Load from server & local storage fallback
   useEffect(() => {
     // Session load
     const savedSession = localStorage.getItem("wis_session") || sessionStorage.getItem("wis_session");
@@ -151,48 +165,150 @@ export default function App() {
     const savedView = localStorage.getItem("wis_view") as "grid" | "list" | null;
     if (savedView) setDefaultView(savedView);
 
-    // Seed/Local DB load
-    const storedPolicies = localStorage.getItem("wis_policies");
-    const storedNotifs = localStorage.getItem("wis_notifications");
-    const storedAudits = localStorage.getItem("wis_audit_logs");
+    // Initial sync fetch
+    const initSync = async () => {
+      try {
+        const response = await fetch("/api/sync");
+        if (response.ok) {
+          const data = await response.json();
+          // Seed local states if server has policies or custom users
+          if (data && (data.policies?.length > 0 || data.users?.length > 2)) {
+            setPolicies(data.policies || []);
+            setNotifications(data.notifications || []);
+            setAuditLogs(data.auditLogs || []);
+            setUsers(data.users || []);
 
-    if (storedPolicies) {
-      setPolicies(JSON.parse(storedPolicies));
-    } else {
-      setPolicies(initialPolicies);
-      localStorage.setItem("wis_policies", JSON.stringify(initialPolicies));
-    }
+            localStorage.setItem("wis_policies", JSON.stringify(data.policies || []));
+            localStorage.setItem("wis_notifications", JSON.stringify(data.notifications || []));
+            localStorage.setItem("wis_audit_logs", JSON.stringify(data.auditLogs || []));
+            localStorage.setItem("wis_users", JSON.stringify(data.users || []));
+          } else {
+            // Server has no records, bootstrap server from local storage (or defaults)
+            const storedPolicies = localStorage.getItem("wis_policies");
+            const storedNotifs = localStorage.getItem("wis_notifications");
+            const storedAudits = localStorage.getItem("wis_audit_logs");
+            const storedUsers = localStorage.getItem("wis_users");
 
-    if (storedNotifs) {
-      setNotifications(JSON.parse(storedNotifs));
-    } else {
-      setNotifications(initialNotifications);
-      localStorage.setItem("wis_notifications", JSON.stringify(initialNotifications));
-    }
+            const localPolicies = storedPolicies ? JSON.parse(storedPolicies) : initialPolicies;
+            const localNotifs = storedNotifs ? JSON.parse(storedNotifs) : initialNotifications;
+            const localAudits = storedAudits ? JSON.parse(storedAudits) : initialAuditLogs;
+            const defaultUsers = [
+              { id: "1", username: "HRWIS", password: "WIS@123", role: "admin", createdAt: "2026-01-01T00:00:00Z", email: "hr@wis-policy.com" },
+              { id: "2", username: "USERWIS", password: "WIS@123", role: "user", createdAt: "2026-01-01T00:00:00Z", email: "user@wis-policy.com" }
+            ];
+            const localUsers = storedUsers ? JSON.parse(storedUsers) : defaultUsers;
 
-    if (storedAudits) {
-      setAuditLogs(JSON.parse(storedAudits));
-    } else {
-      setAuditLogs(initialAuditLogs);
-      localStorage.setItem("wis_audit_logs", JSON.stringify(initialAuditLogs));
-    }
+            setPolicies(localPolicies);
+            setNotifications(localNotifs);
+            setAuditLogs(localAudits);
+            setUsers(localUsers);
+
+            // Seed server
+            await fetch("/api/sync", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                policies: localPolicies,
+                notifications: localNotifs,
+                auditLogs: localAudits,
+                users: localUsers
+              })
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Initial server sync failed, falling back to local cache:", err);
+        const storedPolicies = localStorage.getItem("wis_policies");
+        const storedNotifs = localStorage.getItem("wis_notifications");
+        const storedAudits = localStorage.getItem("wis_audit_logs");
+        if (storedPolicies) setPolicies(JSON.parse(storedPolicies));
+        if (storedNotifs) setNotifications(JSON.parse(storedNotifs));
+        if (storedAudits) setAuditLogs(JSON.parse(storedAudits));
+      }
+    };
+
+    initSync();
   }, []);
 
-  // Save states helper
+  // Listen to deep-link "?policy=id" query parameter
+  useEffect(() => {
+    if (policies.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const policyParam = params.get("policy");
+    if (policyParam) {
+      const exists = policies.some(p => p.id === policyParam);
+      if (exists) {
+        setSelectedPolicyId(policyParam);
+        
+        // Auto-login as standard user if not logged in to streamline quick-scan mobile access
+        const savedSession = localStorage.getItem("wis_session") || sessionStorage.getItem("wis_session");
+        if (!savedSession && !isLoggedIn) {
+          setIsLoggedIn(true);
+          setUsername("USERWIS");
+          setUserRole("user");
+          setCurrentPage("library");
+        }
+      }
+    }
+  }, [policies, isLoggedIn]);
+
+  // Save states helper and push to backend
   const updatePoliciesState = (newPolicies: Policy[]) => {
     setPolicies(newPolicies);
     localStorage.setItem("wis_policies", JSON.stringify(newPolicies));
+    pushState({ policies: newPolicies });
   };
 
   const updateNotificationsState = (newNotifs: SystemNotification[]) => {
     setNotifications(newNotifs);
     localStorage.setItem("wis_notifications", JSON.stringify(newNotifs));
+    pushState({ notifications: newNotifs });
   };
 
   const updateAuditLogsState = (newAudits: AuditLog[]) => {
     setAuditLogs(newAudits);
     localStorage.setItem("wis_audit_logs", JSON.stringify(newAudits));
+    pushState({ auditLogs: newAudits });
   };
+
+  // Background auto-sync polling every 5 seconds
+  useEffect(() => {
+    let active = true;
+    const syncInterval = setInterval(async () => {
+      try {
+        const response = await fetch("/api/sync");
+        if (response.ok && active) {
+          const data = await response.json();
+          if (data) {
+            // Compare and update only if change exists to avoid component re-render loops
+            if (data.policies && JSON.stringify(data.policies) !== JSON.stringify(policies)) {
+              setPolicies(data.policies);
+              localStorage.setItem("wis_policies", JSON.stringify(data.policies));
+            }
+            if (data.notifications && JSON.stringify(data.notifications) !== JSON.stringify(notifications)) {
+              setNotifications(data.notifications);
+              localStorage.setItem("wis_notifications", JSON.stringify(data.notifications));
+            }
+            if (data.auditLogs && JSON.stringify(data.auditLogs) !== JSON.stringify(auditLogs)) {
+              setAuditLogs(data.auditLogs);
+              localStorage.setItem("wis_audit_logs", JSON.stringify(data.auditLogs));
+            }
+            if (data.users && JSON.stringify(data.users) !== JSON.stringify(users)) {
+              setUsers(data.users);
+              localStorage.setItem("wis_users", JSON.stringify(data.users));
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Auto-sync background polling error:", err);
+      }
+    }, 5000);
+
+    return () => {
+      active = false;
+      clearInterval(syncInterval);
+    };
+  }, [policies, notifications, auditLogs, users]);
 
   // Live ticking clock
   useEffect(() => {
@@ -260,11 +376,14 @@ export default function App() {
 
   // Logout handler
   const handleLogout = () => {
-    if (confirm("Disconnect and secure active session?")) {
-      setIsLoggedIn(false);
-      localStorage.removeItem("wis_session");
-      sessionStorage.removeItem("wis_session");
-    }
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    setIsLoggedIn(false);
+    localStorage.removeItem("wis_session");
+    sessionStorage.removeItem("wis_session");
+    setShowLogoutConfirm(false);
   };
 
   // State manipulation handlers
@@ -532,7 +651,10 @@ export default function App() {
       password: password || "WIS@123",
       createdAt: new Date().toISOString()
     };
-    setUsers([...users, newUser]);
+    const updatedUsers = [...users, newUser];
+    setUsers(updatedUsers);
+    localStorage.setItem("wis_users", JSON.stringify(updatedUsers));
+    pushState({ users: updatedUsers });
 
     // Add manual audit log of user addition
     const newLog: AuditLog = {
@@ -692,16 +814,6 @@ export default function App() {
                   Sign In to Catalog
                 </button>
               </form>
-
-              {/* Secure Credentials hint for evaluation */}
-              <div className="p-3.5 border border-slate-200/10 dark:border-white/10 bg-zinc-900/20 rounded-xl text-center text-[10px] text-muted-foreground leading-normal font-sans space-y-1">
-                <div>
-                  <span className="font-bold text-foreground">Admin Sandbox:</span> Username: <span className="font-mono text-purple-400">HRWIS</span> | Password: <span className="font-mono text-purple-400">WIS@123</span>
-                </div>
-                <div className="border-t border-slate-250/5 dark:border-white/5 pt-1 mt-1">
-                  <span className="font-bold text-foreground">Standard User Sandbox:</span> Username: <span className="font-mono text-purple-400">USERWIS</span> | Password: <span className="font-mono text-purple-400">WIS@123</span>
-                </div>
-              </div>
             </div>
           </motion.div>
         ) : (
@@ -1226,8 +1338,66 @@ export default function App() {
                   policies={policies}
                   onClose={() => setSelectedPolicyId(null)}
                   onSaveAIAnalysis={handleSaveAIAnalysis}
+                  onDeletePolicy={handleDeletePolicy}
                   userRole={userRole}
                 />
+              )}
+            </AnimatePresence>
+
+            {/* Custom Logout Confirmation Dialog */}
+            <AnimatePresence>
+              {showLogoutConfirm && (
+                <>
+                  {/* Backdrop */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setShowLogoutConfirm(false)}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                  >
+                    {/* Modal Card */}
+                    <motion.div
+                      initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                      transition={{ type: "spring", duration: 0.4 }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full max-w-sm rounded-2xl border border-zinc-200/10 dark:border-white/10 bg-[var(--bg-card)] p-6 shadow-2xl relative overflow-hidden text-center"
+                    >
+                      {/* Ambient header decoration */}
+                      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-purple-500 via-rose-500 to-amber-500" />
+                      
+                      <div className="mx-auto w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mb-4">
+                        <LogOut className="w-6 h-6 animate-pulse" />
+                      </div>
+
+                      <h3 className="text-sm font-black text-foreground mb-2">
+                        Disconnect Governance Session?
+                      </h3>
+                      <p className="text-xs text-muted-foreground leading-normal mb-6">
+                        You are about to sign out from the WIS Policy Hub. Your active session token will be securely purged.
+                      </p>
+
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowLogoutConfirm(false)}
+                          className="flex-1 px-4 py-2.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-muted-foreground hover:text-foreground font-bold text-xs rounded-xl transition-all cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={confirmLogout}
+                          className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-lg shadow-rose-950/20"
+                        >
+                          Disconnect
+                        </button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                </>
               )}
             </AnimatePresence>
           </motion.div>

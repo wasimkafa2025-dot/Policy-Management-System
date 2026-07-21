@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
-  X, Calendar, User, FileText, Settings, ShieldAlert, Sparkles, 
-  RefreshCw, CheckCircle, ClipboardList, History, Paperclip, 
-  AlertTriangle, FileCode, Check
+  X, Calendar, FileText, ShieldAlert, Sparkles, 
+  RefreshCw, CheckCircle, Paperclip, AlertTriangle, Check
 } from "lucide-react";
+import QRCode from "qrcode";
 import { Policy, AIAnalysisResult } from "../types";
 
 interface PolicyDetailModalProps {
@@ -12,6 +12,7 @@ interface PolicyDetailModalProps {
   policies: Policy[];
   onClose: () => void;
   onSaveAIAnalysis: (policyId: string, analysis: AIAnalysisResult) => void;
+  onDeletePolicy?: (id: string) => void;
   userRole?: 'admin' | 'user';
 }
 
@@ -20,13 +21,69 @@ export default function PolicyDetailModal({
   policies, 
   onClose, 
   onSaveAIAnalysis,
+  onDeletePolicy,
   userRole = 'admin'
 }: PolicyDetailModalProps) {
   const policy = policies.find(p => p.id === policyId);
-  const [activeTab, setActiveTab] = useState<"info" | "sop" | "ai" | "history">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "ai">("info");
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [zoomedQR, setZoomedQR] = useState<string | null>(null);
+  const [zoomedQrBase64, setZoomedQrBase64] = useState<string>("");
+  const [detailDeleteConfirm, setDetailDeleteConfirm] = useState(false);
+  const [qrType, setQrType] = useState<"app" | "onedrive">("app");
+  const [qrBase64, setQrBase64] = useState<string>("");
+
+  useEffect(() => {
+    if (!policy) return;
+
+    let targetUrl = window.location.origin + "?policy=" + policy.id;
+    if (qrType === "onedrive" && policy.oneDriveLink) {
+      targetUrl = policy.oneDriveLink;
+    }
+
+    QRCode.toDataURL(
+      targetUrl,
+      {
+        width: 400,
+        margin: 2,
+        color: {
+          dark: "#0a0a0c",
+          light: "#ffffff",
+        },
+      },
+      (err, url) => {
+        if (err) {
+          console.error("Failed to generate QR code:", err);
+          return;
+        }
+        setQrBase64(url);
+      }
+    );
+  }, [policy, qrType]);
+
+  useEffect(() => {
+    if (!zoomedQR) {
+      setZoomedQrBase64("");
+      return;
+    }
+    QRCode.toDataURL(
+      zoomedQR,
+      {
+        width: 600,
+        margin: 2,
+        color: {
+          dark: "#0a0a0c",
+          light: "#ffffff",
+        },
+      },
+      (err, url) => {
+        if (!err && url) {
+          setZoomedQrBase64(url);
+        }
+      }
+    );
+  }, [zoomedQR]);
 
   if (!policy) return null;
 
@@ -77,10 +134,14 @@ export default function PolicyDetailModal({
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
         transition={{ type: "spring", damping: 25, stiffness: 220 }}
-        className="relative w-full max-w-2xl h-full border-l border-[var(--border-color)] bg-[var(--bg-card)] shadow-2xl flex flex-col z-10"
+        className="relative w-full max-w-2xl h-full border-l bg-[var(--bg-card)] shadow-2xl flex flex-col z-10"
+        style={{ borderLeftColor: coverColor }}
       >
+        {/* Color Strip Indicator */}
+        <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: coverColor }} />
+
         {/* Drawer Header */}
-        <div className="p-5 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-card)]/90 sticky top-0 z-20 backdrop-blur-md">
+        <div className="p-5 border-b flex items-center justify-between bg-[var(--bg-card)]/90 sticky top-0 z-20 backdrop-blur-md" style={{ borderBottomColor: `${coverColor}20` }}>
           <div className="space-y-0.5">
             <span className="text-[10px] font-bold text-muted-foreground uppercase font-mono">{policy.code} &bull; Version {policy.version}</span>
             <h3 className="font-black text-sm text-foreground truncate max-w-sm">{policy.title}</h3>
@@ -105,19 +166,21 @@ export default function PolicyDetailModal({
         </div>
 
         {/* Tab Selection */}
-        <div className="flex border-b border-[var(--border-color)] bg-[var(--bg-panel)]/30 text-xs text-muted-foreground font-semibold">
+        <div className="flex border-b bg-[var(--bg-panel)]/30 text-xs text-muted-foreground font-semibold" style={{ borderBottomColor: `${coverColor}15` }}>
           {[
             { id: "info", name: "Policy Information", icon: FileText },
-            { id: "sop", name: "Procedures & Forms", icon: ClipboardList },
-            { id: "ai", name: "AI Compliance Audit", icon: Sparkles },
-            { id: "history", name: "Audit Trail", icon: History }
+            { id: "ai", name: "AI Compliance Audit", icon: Sparkles }
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 py-3 border-b-2 text-center flex items-center justify-center gap-1.5 transition-all cursor-pointer ${activeTab === tab.id ? 'border-emerald-600 text-foreground bg-emerald-500/[0.03]' : 'border-transparent hover:text-foreground'}`}
+              className={`flex-1 py-3 border-b-2 text-center flex items-center justify-center gap-1.5 transition-all cursor-pointer ${activeTab === tab.id ? 'text-foreground' : 'border-transparent hover:text-foreground'}`}
+              style={{
+                borderColor: activeTab === tab.id ? coverColor : 'transparent',
+                backgroundColor: activeTab === tab.id ? `${coverColor}0c` : 'transparent'
+              }}
             >
-              <tab.icon className="w-4 h-4 shrink-0 text-emerald-500" />
+              <tab.icon className="w-4 h-4 shrink-0" style={{ color: activeTab === tab.id ? coverColor : undefined }} />
               <span className="hidden sm:inline">{tab.name}</span>
             </button>
           ))}
@@ -153,86 +216,151 @@ export default function PolicyDetailModal({
                   </div>
                 </div>
 
-                {/* OneDrive Connection Section */}
-                {policy.oneDriveLink && (
-                  <div className="p-4 border border-indigo-500/20 bg-indigo-500/5 rounded-2xl space-y-4">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <h4 className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
-                          OneDrive Approved Document Track
-                        </h4>
-                        <p className="text-[11px] text-muted-foreground leading-normal">
-                          This policy is connected to and tracked from an approved OneDrive file link.
-                        </p>
-                      </div>
-                      <a 
-                        href={policy.oneDriveLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-indigo-600/10 transition-all cursor-pointer whitespace-nowrap"
-                      >
-                        <span>Open Document</span>
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" /></svg>
-                      </a>
-                    </div>
+                 {/* Unified QR Code Quick Share / Mobile Access Section */}
+                 <div className="p-4 border rounded-2xl space-y-4 shadow-sm" style={{ backgroundColor: `${coverColor}05`, borderColor: `${coverColor}20` }}>
+                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                     <div className="space-y-1">
+                       <h4 className="text-xs font-bold flex items-center gap-1.5" style={{ color: coverColor }}>
+                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                           <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                           <rect x="7" y="7" width="3" height="3"/>
+                           <rect x="14" y="7" width="3" height="3"/>
+                           <rect x="7" y="14" width="3" height="3"/>
+                         </svg>
+                         Mobile Access & QR Share
+                       </h4>
+                       <p className="text-[11px] text-muted-foreground leading-normal">
+                         Generate and scan a high-resolution, secure QR code to instantly pull up this policy on any mobile device or share the direct link.
+                       </p>
+                     </div>
+                     {policy.oneDriveLink && (
+                       <a 
+                         href={policy.oneDriveLink}
+                         target="_blank"
+                         rel="noopener noreferrer"
+                         className="px-3 py-1.5 text-white font-bold text-[10px] rounded-lg flex items-center gap-1.5 shadow-lg transition-all cursor-pointer whitespace-nowrap hover:brightness-110 active:scale-95"
+                         style={{ backgroundColor: coverColor }}
+                       >
+                         <span>OneDrive Source</span>
+                         <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" /></svg>
+                       </a>
+                     )}
+                   </div>
 
-                    {/* QR Code Scan Integration Block */}
-                    <div className="border-t border-indigo-500/10 pt-4 flex flex-col sm:flex-row items-center gap-4 bg-indigo-950/25 p-3.5 rounded-xl border border-indigo-500/5">
-                      <div 
-                        onClick={() => setZoomedQR(policy.oneDriveLink || null)}
-                        className="relative group shrink-0 bg-white p-2 rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95 cursor-zoom-in"
-                        title="Click to zoom scan view"
-                      >
-                        <img 
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(policy.oneDriveLink)}`} 
-                          alt="OneDrive QR Link" 
-                          referrerPolicy="no-referrer"
-                          className="w-[100px] h-[100px] object-contain rounded-lg block"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
-                          <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
-                        </div>
-                      </div>
-                      <div className="space-y-1.5 text-center sm:text-left flex-1">
-                        <div className="flex items-center justify-center sm:justify-start gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          <h5 className="text-[11px] font-black text-indigo-300 uppercase tracking-wider">Mobile QR Quick-Scan</h5>
-                        </div>
-                        <p className="text-[10.5px] text-muted-foreground leading-normal max-w-md">
-                          Scan this code with a phone camera to quickly pull up the active OneDrive document trace on mobile without typing credentials.
-                        </p>
-                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-0.5">
-                          <a 
-                            href={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(policy.oneDriveLink)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] text-indigo-400 hover:text-indigo-300 hover:underline font-bold cursor-pointer flex items-center gap-1 transition-colors"
-                          >
-                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                            Get High-Res QR Code Image
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                   {/* Toggle QR code source (only show tabs if OneDrive link exists) */}
+                   {policy.oneDriveLink && (
+                     <div className="flex gap-1.5 p-1 bg-[var(--bg-input)] rounded-xl border border-[var(--border-color)] text-xs">
+                       <button
+                         type="button"
+                         onClick={() => setQrType("app")}
+                         className={`flex-1 py-1.5 text-center font-bold rounded-lg transition-all cursor-pointer ${
+                           qrType === "app" 
+                             ? "bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-color)] shadow-sm" 
+                             : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                         }`}
+                       >
+                         App Deep-Link
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => setQrType("onedrive")}
+                         className={`flex-1 py-1.5 text-center font-bold rounded-lg transition-all cursor-pointer ${
+                           qrType === "onedrive" 
+                             ? "bg-[var(--bg-panel)] text-[var(--text-primary)] border border-[var(--border-color)] shadow-sm" 
+                             : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                         }`}
+                       >
+                         OneDrive Original
+                       </button>
+                     </div>
+                   )}
+
+                   {/* QR Code Graphic and Options */}
+                   <div className="pt-2 flex flex-col sm:flex-row items-center gap-4 p-3.5 rounded-xl border bg-[var(--bg-input)]/45" style={{ borderColor: `${coverColor}15` }}>
+                     <div 
+                       onClick={() => {
+                         const target = qrType === "onedrive" && policy.oneDriveLink ? policy.oneDriveLink : window.location.origin + "?policy=" + policy.id;
+                         setZoomedQR(target);
+                       }}
+                       className="relative group shrink-0 bg-white p-2.5 rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95 cursor-zoom-in border border-zinc-200/5"
+                       title="Click to zoom scan view"
+                     >
+                       {qrBase64 ? (
+                         <img 
+                           src={qrBase64} 
+                           alt="Policy QR Code" 
+                           className="w-[100px] h-[100px] object-contain rounded-lg block"
+                         />
+                       ) : (
+                         <div className="w-[100px] h-[100px] flex items-center justify-center bg-zinc-50 rounded-lg">
+                           <RefreshCw className="w-5 h-5 text-zinc-400 animate-spin" />
+                         </div>
+                       )}
+                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
+                         <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+                       </div>
+                     </div>
+
+                     <div className="space-y-1.5 text-center sm:text-left flex-1">
+                       <div className="flex items-center justify-center sm:justify-start gap-1.5">
+                         <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: coverColor }} />
+                         <h5 className="text-[11px] font-black uppercase tracking-wider" style={{ color: coverColor }}>
+                           {qrType === "app" ? "Mobile App Quick-Scan" : "OneDrive Document Link"}
+                         </h5>
+                       </div>
+                       <p className="text-[10.5px] text-[var(--text-muted)] leading-normal max-w-md font-sans">
+                         {qrType === "app" 
+                           ? "Scan to open this specific policy detail drawer on your mobile device instantly. Includes automated guest credentials."
+                           : "Scan to navigate directly to the official, unedited corporate OneDrive document for reading or printing."
+                         }
+                       </p>
+
+                       <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-1">
+                         {qrBase64 && (
+                           <a 
+                             href={qrBase64}
+                             download={`policy_qr_${policy.code}.png`}
+                             className="text-[10px] hover:underline font-bold cursor-pointer flex items-center gap-1 transition-colors hover:brightness-110"
+                             style={{ color: coverColor }}
+                           >
+                             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                             Download QR Image
+                           </a>
+                         )}
+
+                         {qrType === "app" && (
+                           <button 
+                             type="button"
+                             onClick={() => {
+                               navigator.clipboard.writeText(window.location.origin + "?policy=" + policy.id);
+                               alert("Deep link copied to clipboard!");
+                             }}
+                             className="text-[10px] hover:underline font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1 cursor-pointer bg-transparent border-none"
+                           >
+                             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                             Copy Link
+                           </button>
+                         )}
+                       </div>
+                     </div>
+                   </div>
+                 </div>
 
                 {/* Metadata Fields */}
                 <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div className="p-3.5 border border-slate-200/10 dark:border-white/10 rounded-xl space-y-1 glass-card">
+                  <div className="p-3.5 border rounded-xl space-y-1 shadow-inner" style={{ backgroundColor: `${coverColor}06`, borderColor: `${coverColor}18` }}>
                     <span className="font-semibold text-muted-foreground uppercase text-[9px]">Department</span>
                     <span className="text-foreground font-bold block">{policy.department}</span>
                   </div>
-                  <div className="p-3.5 border border-slate-200/10 dark:border-white/10 rounded-xl space-y-1 glass-card">
+                  <div className="p-3.5 border rounded-xl space-y-1 shadow-inner" style={{ backgroundColor: `${coverColor}06`, borderColor: `${coverColor}18` }}>
                     <span className="font-semibold text-muted-foreground uppercase text-[9px]">Category Domain</span>
                     <span className="text-foreground font-bold block">{policy.category}</span>
                   </div>
-                  <div className="p-3.5 border border-slate-200/10 dark:border-white/10 rounded-xl space-y-1 glass-card">
+                  <div className="p-3.5 border rounded-xl space-y-1 shadow-inner" style={{ backgroundColor: `${coverColor}06`, borderColor: `${coverColor}18` }}>
                     <span className="font-semibold text-muted-foreground uppercase text-[9px]">Sponsor / Owner</span>
                     <span className="text-foreground font-bold block">{policy.owner}</span>
                   </div>
-                  <div className="p-3.5 border border-slate-200/10 dark:border-white/10 rounded-xl space-y-1 glass-card">
+                  <div className="p-3.5 border rounded-xl space-y-1 shadow-inner" style={{ backgroundColor: `${coverColor}06`, borderColor: `${coverColor}18` }}>
                     <span className="font-semibold text-muted-foreground uppercase text-[9px]">Effective Compliance Date</span>
                     <span className="text-foreground font-bold block font-mono">{policy.effectiveDate || 'N/A'}</span>
                   </div>
@@ -240,22 +368,22 @@ export default function PolicyDetailModal({
 
                 {/* Description */}
                 <div className="space-y-2 text-xs">
-                  <h4 className="font-bold text-foreground">Policy Mandate Description</h4>
+                  <h4 className="font-bold text-foreground" style={{ color: coverColor }}>Policy Mandate Description</h4>
                   <p className="text-muted-foreground leading-relaxed font-sans">{policy.description}</p>
                 </div>
 
                 {/* Document attachments */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
-                    <Paperclip className="w-4 h-4 text-emerald-500" />
+                  <h4 className="text-xs font-bold text-foreground flex items-center gap-2" style={{ color: coverColor }}>
+                    <Paperclip className="w-4 h-4" style={{ color: coverColor }} />
                     Attached Official Documents
                   </h4>
                   {policy.documents && policy.documents.length > 0 ? (
                     <div className="space-y-2">
                       {policy.documents.map((doc, idx) => (
-                        <div key={idx} className="p-3 border border-[var(--border-color)] rounded-xl flex items-center justify-between text-xs bg-[var(--bg-panel)]/40">
+                        <div key={idx} className="p-3 border rounded-xl flex items-center justify-between text-xs bg-[var(--bg-panel)]/40" style={{ borderColor: `${coverColor}20` }}>
                           <div className="flex items-center gap-2 truncate">
-                            <FileText className="w-4.5 h-4.5 text-emerald-500" />
+                            <FileText className="w-4.5 h-4.5" style={{ color: coverColor }} />
                             <span className="font-bold text-foreground truncate">{doc.documentName}</span>
                           </div>
                           <span className="text-[10px] text-muted-foreground font-mono">{doc.uploadDate}</span>
@@ -263,81 +391,59 @@ export default function PolicyDetailModal({
                       ))}
                     </div>
                   ) : (
-                    <div className="p-4 border border-dashed border-zinc-900 rounded-xl text-center text-xs text-muted-foreground">
+                    <div className="p-4 border border-dashed rounded-xl text-center text-xs text-muted-foreground" style={{ borderColor: `${coverColor}25` }}>
                       No files uploaded. Draft is entirely metadata.
                     </div>
                   )}
                 </div>
-              </motion.div>
-            )}
 
-            {/* 2. SOP & Forms Tab */}
-            {activeTab === "sop" && (
-              <motion.div 
-                key="sop"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-6"
-              >
-                {/* SOP lists */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-foreground flex items-center gap-2 border-b border-[var(--border-color)] pb-2">
-                    <ClipboardList className="w-4.5 h-4.5 text-emerald-500" />
-                    Linked SOP Workflows
-                  </h4>
-
-                  {policy.procedures && policy.procedures.length > 0 ? (
-                    <div className="space-y-4">
-                      {policy.procedures.map((proc) => (
-                        <div key={proc.id} className="p-4 border border-[var(--border-color)] rounded-xl space-y-2.5 text-xs bg-[var(--bg-panel)]/40">
-                          <h5 className="font-bold text-foreground">{proc.title}</h5>
-                          <p className="text-muted-foreground">{proc.description}</p>
-                          <div className="space-y-2 pt-1">
-                            {proc.steps.map((s, idx) => (
-                              <div key={idx} className="flex gap-2.5 items-start">
-                                <span className="w-4 h-4 rounded-full bg-emerald-500/10 border border-emerald-500/15 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">{idx+1}</span>
-                                <span className="text-muted-foreground leading-relaxed">{s}</span>
-                              </div>
-                            ))}
-                          </div>
+                {/* Decommission/Delete section */}
+                {userRole !== "user" && onDeletePolicy && (
+                  <div className="pt-6 border-t border-zinc-200/10 dark:border-white/10 space-y-3">
+                    <h4 className="text-xs font-bold text-rose-500 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-rose-500" />
+                      Danger Zone
+                    </h4>
+                    <div className="p-4 border border-rose-500/20 bg-rose-500/5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <h5 className="font-bold text-xs text-foreground">Decommission / Delete Policy</h5>
+                        <p className="text-[11px] text-muted-foreground max-w-sm leading-normal">
+                          Permanently remove this governance volume from the active corporate registry. This action cannot be undone.
+                        </p>
+                      </div>
+                      
+                      {detailDeleteConfirm ? (
+                        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onDeletePolicy(policy.id);
+                              onClose();
+                            }}
+                            className="flex-1 sm:flex-initial px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl cursor-pointer shadow-lg shadow-rose-950/35 transition-all"
+                          >
+                            Yes, Delete
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDetailDeleteConfirm(false)}
+                            className="flex-1 sm:flex-initial px-3 py-2 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-muted-foreground hover:text-foreground font-bold text-xs rounded-xl cursor-pointer transition-all"
+                          >
+                            Cancel
+                          </button>
                         </div>
-                      ))}
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setDetailDeleteConfirm(true)}
+                          className="w-full sm:w-auto px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/25 rounded-xl font-bold text-xs transition-all cursor-pointer text-center"
+                        >
+                          Decommission Policy
+                        </button>
+                      )}
                     </div>
-                  ) : (
-                    <div className="text-center py-6 text-xs text-muted-foreground border border-dashed border-zinc-900 rounded-xl">No linked procedures yet.</div>
-                  )}
-                </div>
-
-                {/* Forms lists */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-foreground flex items-center gap-2 border-b border-[var(--border-color)] pb-2">
-                    <FileCode className="w-4.5 h-4.5 text-emerald-500" />
-                    Linked Compliance Forms
-                  </h4>
-
-                  {policy.forms && policy.forms.length > 0 ? (
-                    <div className="space-y-4">
-                      {policy.forms.map((f) => (
-                        <div key={f.id} className="p-4 border border-[var(--border-color)] rounded-xl space-y-2.5 text-xs bg-[var(--bg-panel)]/40">
-                          <div>
-                            <h5 className="font-bold text-foreground">{f.name}</h5>
-                            <span className="text-[10px] text-muted-foreground">{f.description}</span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2.5 pt-1">
-                            {f.fields.map((field, idx) => (
-                              <div key={idx} className="p-2 border border-zinc-900 bg-zinc-950 rounded-lg">
-                                <span className="text-[10px] text-muted-foreground font-semibold">{field}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 text-xs text-muted-foreground border border-dashed border-zinc-900 rounded-xl">No linked forms yet.</div>
-                  )}
-                </div>
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -446,33 +552,6 @@ export default function PolicyDetailModal({
                 )}
               </motion.div>
             )}
-
-            {/* 4. History / Timeline Tab */}
-            {activeTab === "history" && (
-              <motion.div 
-                key="history"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-4"
-              >
-                <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-[var(--border-color)]">
-                  <div className="relative before:absolute before:left-[-21px] before:top-1.5 before:w-2.5 before:h-2.5 before:rounded-full before:bg-emerald-600 before:border-2 before:border-[var(--bg-card)] text-xs">
-                    <span className="font-mono text-muted-foreground">{new Date(policy.updatedDate).toLocaleDateString()}</span>
-                    <h4 className="font-bold text-foreground mt-0.5">Policy Modified & Audit Saved</h4>
-                    <p className="text-muted-foreground leading-relaxed mt-0.5">Governance catalog version {policy.version} compiled with active documents.</p>
-                    <span className="text-[10px] text-muted-foreground font-semibold block mt-1">Author: VP Compliance</span>
-                  </div>
-
-                  <div className="relative before:absolute before:left-[-21px] before:top-1.5 before:w-2.5 before:h-2.5 before:rounded-full before:bg-zinc-800 before:border-2 before:border-zinc-950 text-xs">
-                    <span className="font-mono text-muted-foreground">{new Date(policy.createdDate).toLocaleDateString()}</span>
-                    <h4 className="font-bold text-foreground mt-0.5">Draft Initiated</h4>
-                    <p className="text-muted-foreground leading-relaxed mt-0.5">Initial layout parameters defined and stored in database.</p>
-                    <span className="text-[10px] text-zinc-500 font-semibold block mt-1">System Action</span>
-                  </div>
-                </div>
-              </motion.div>
-            )}
           </AnimatePresence>
         </div>
       </motion.div>
@@ -493,14 +572,14 @@ export default function PolicyDetailModal({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 350 }}
-              className="relative bg-white p-6 sm:p-8 rounded-3xl max-w-sm w-full shadow-2xl flex flex-col items-center text-center space-y-4 border border-indigo-500/15 z-10"
+              className="relative bg-white p-6 sm:p-8 rounded-3xl max-w-sm w-full shadow-2xl flex flex-col items-center text-center space-y-4 border border-zinc-200/5 z-10"
             >
               <button 
                 onClick={() => setZoomedQR(null)}
-                className="absolute top-4 right-4 p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-full cursor-pointer transition-all"
+                className="absolute top-4 right-4 p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-850 rounded-full cursor-pointer transition-all"
                 title="Close Zoomed View"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 text-zinc-800" />
               </button>
 
               <div className="space-y-1">
@@ -510,17 +589,20 @@ export default function PolicyDetailModal({
                 <p className="text-[10px] text-zinc-500">Scan code with mobile camera to browse directly</p>
               </div>
 
-              <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100 shadow-inner">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(zoomedQR)}`} 
-                  alt="Zoomed QR Code" 
-                  referrerPolicy="no-referrer"
-                  className="w-[200px] h-[200px] object-contain rounded-lg block"
-                />
+              <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100 shadow-inner flex items-center justify-center min-h-[220px]">
+                {zoomedQrBase64 ? (
+                  <img 
+                    src={zoomedQrBase64} 
+                    alt="Zoomed QR Code" 
+                    className="w-[200px] h-[200px] object-contain rounded-lg block"
+                  />
+                ) : (
+                  <RefreshCw className="w-8 h-8 text-zinc-400 animate-spin" />
+                )}
               </div>
 
               <div className="space-y-2 w-full text-xs text-zinc-700">
-                <span className="font-mono text-[9px] bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full border border-indigo-100 inline-block truncate max-w-full">
+                <span className="font-mono text-[9px] bg-zinc-50 text-zinc-600 px-2.5 py-1 rounded-full border border-zinc-200 inline-block truncate max-w-full">
                   {zoomedQR}
                 </span>
                 
@@ -533,14 +615,15 @@ export default function PolicyDetailModal({
                   >
                     Open Link
                   </a>
-                  <a 
-                    href={`https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(zoomedQR)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5"
-                  >
-                    Download QR
-                  </a>
+                  {zoomedQrBase64 && (
+                    <a 
+                      href={zoomedQrBase64}
+                      download={`policy_qr_high_res_${policy.code}.png`}
+                      className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5"
+                    >
+                      Download QR
+                    </a>
+                  )}
                 </div>
               </div>
             </motion.div>

@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
+import fs from "fs";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 
@@ -11,6 +12,70 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// Persistent JSON storage file path
+const DATA_FILE = path.join(process.cwd(), "data-store.json");
+
+interface DataStore {
+  policies: any[];
+  notifications: any[];
+  auditLogs: any[];
+  users: any[];
+}
+
+const defaultStore: DataStore = {
+  policies: [],
+  notifications: [],
+  auditLogs: [],
+  users: [
+    { id: "1", username: "HRWIS", password: "WIS@123", role: "admin", createdAt: "2026-01-01T00:00:00Z", email: "hr@wis-policy.com" },
+    { id: "2", username: "USERWIS", password: "WIS@123", role: "user", createdAt: "2026-01-01T00:00:00Z", email: "user@wis-policy.com" }
+  ]
+};
+
+function readStore(): DataStore {
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const content = fs.readFileSync(DATA_FILE, "utf-8");
+      return JSON.parse(content);
+    }
+  } catch (err) {
+    console.error("Error reading data store file:", err);
+  }
+  return defaultStore;
+}
+
+function writeStore(data: DataStore) {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Error writing data store file:", err);
+  }
+}
+
+// Sync GET endpoint
+app.get("/api/sync", (req, res) => {
+  res.json(readStore());
+});
+
+// Sync POST endpoint
+app.post("/api/sync", (req, res) => {
+  try {
+    const current = readStore();
+    const { policies, notifications, auditLogs, users } = req.body;
+
+    if (policies !== undefined) current.policies = policies;
+    if (notifications !== undefined) current.notifications = notifications;
+    if (auditLogs !== undefined) current.auditLogs = auditLogs;
+    if (users !== undefined) current.users = users;
+
+    writeStore(current);
+    res.json({ success: true, timestamp: new Date().toISOString() });
+  } catch (err: any) {
+    console.error("Error writing to sync data-store:", err);
+    res.status(500).json({ error: err.message || "Failed to update sync store" });
+  }
+});
 
 // Helper to get Gemini Client lazily
 function getGeminiClient() {
