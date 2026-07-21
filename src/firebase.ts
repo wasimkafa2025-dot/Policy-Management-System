@@ -15,7 +15,14 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Analytics conditionally to prevent errors in non-browser/SSR environments
-const analytics = typeof window !== "undefined" ? getAnalytics(app) : null;
+// Initialize Analytics conditionally to prevent errors in non-browser/SSR environments or if blocked by ad-blockers
+let analytics = null;
+if (typeof window !== "undefined") {
+  try {
+    analytics = getAnalytics(app);
+  } catch (error) {
+    console.warn("Firebase Analytics could not be initialized (possibly blocked by an ad-blocker):", error);
+  }
+}
 
 export { app, analytics };
