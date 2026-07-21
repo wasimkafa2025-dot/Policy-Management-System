@@ -21,6 +21,20 @@ import Settings from "./components/Settings";
 import PolicyDetailModal from "./components/PolicyDetailModal";
 import AuditLogs from "./components/AuditLogs";
 
+// Secure utility to prevent unhandled syntax errors when parsing corrupted local storage keys
+function safeJsonParse<T>(value: string | null, defaultValue: T): T {
+  if (!value) return defaultValue;
+  try {
+    if (value === "undefined" || value === "null" || value.trim() === "") {
+      return defaultValue;
+    }
+    return JSON.parse(value) as T;
+  } catch (err) {
+    console.error("Local storage sync JSON parsing failed; resetting to defaults:", err, value);
+    return defaultValue;
+  }
+}
+
 export default function App() {
   // Theme state
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -136,16 +150,22 @@ export default function App() {
 
   // Load from server & local storage fallback
   useEffect(() => {
-    // Session load
+    // Session load (wrapped in try-catch to prevent blank screens on invalid saved state)
     const savedSession = localStorage.getItem("wis_session") || sessionStorage.getItem("wis_session");
     if (savedSession) {
-      const sess = JSON.parse(savedSession);
-      setIsLoggedIn(sess.loggedIn);
-      setUsername(sess.username);
-      const role = sess.role || 'admin';
-      setUserRole(role);
-      if (role === 'user') {
-        setCurrentPage("library");
+      try {
+        const sess = JSON.parse(savedSession);
+        if (sess && typeof sess === 'object') {
+          setIsLoggedIn(!!sess.loggedIn);
+          setUsername(sess.username || "HRWIS");
+          const role = sess.role || 'admin';
+          setUserRole(role);
+          if (role === 'user') {
+            setCurrentPage("library");
+          }
+        }
+      } catch (err) {
+        console.error("Failed to parse saved session from local storage:", err);
       }
     }
 
@@ -189,14 +209,14 @@ export default function App() {
             const storedAudits = localStorage.getItem("wis_audit_logs");
             const storedUsers = localStorage.getItem("wis_users");
 
-            const localPolicies = storedPolicies ? JSON.parse(storedPolicies) : initialPolicies;
-            const localNotifs = storedNotifs ? JSON.parse(storedNotifs) : initialNotifications;
-            const localAudits = storedAudits ? JSON.parse(storedAudits) : initialAuditLogs;
+            const localPolicies = safeJsonParse(storedPolicies, initialPolicies);
+            const localNotifs = safeJsonParse(storedNotifs, initialNotifications);
+            const localAudits = safeJsonParse(storedAudits, initialAuditLogs);
             const defaultUsers = [
               { id: "1", username: "HRWIS", password: "WIS@123", role: "admin", createdAt: "2026-01-01T00:00:00Z", email: "hr@wis-policy.com" },
               { id: "2", username: "USERWIS", password: "WIS@123", role: "user", createdAt: "2026-01-01T00:00:00Z", email: "user@wis-policy.com" }
             ];
-            const localUsers = storedUsers ? JSON.parse(storedUsers) : defaultUsers;
+            const localUsers = safeJsonParse(storedUsers, defaultUsers);
 
             setPolicies(localPolicies);
             setNotifications(localNotifs);
@@ -223,9 +243,9 @@ export default function App() {
         const storedPolicies = localStorage.getItem("wis_policies");
         const storedNotifs = localStorage.getItem("wis_notifications");
         const storedAudits = localStorage.getItem("wis_audit_logs");
-        setPolicies(storedPolicies ? JSON.parse(storedPolicies) : initialPolicies);
-        setNotifications(storedNotifs ? JSON.parse(storedNotifs) : initialNotifications);
-        setAuditLogs(storedAudits ? JSON.parse(storedAudits) : initialAuditLogs);
+        setPolicies(safeJsonParse(storedPolicies, initialPolicies));
+        setNotifications(safeJsonParse(storedNotifs, initialNotifications));
+        setAuditLogs(safeJsonParse(storedAudits, initialAuditLogs));
       }
     };
 

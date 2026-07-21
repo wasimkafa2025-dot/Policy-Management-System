@@ -163,7 +163,7 @@ aside, header {
 }
 
 /* Common list boxes, dashboard tables, and panels */
-.bg-slate-50, .bg-\[\#0F172A\], .bg-zinc-900, .bg-zinc-900\/20, .bg-[#0F172A] {
+.bg-slate-50, .bg-\[\#0F172A\], .bg-zinc-900, .bg-zinc-900\/20 {
   background-color: var(--bg-app) !important;
 }
 
