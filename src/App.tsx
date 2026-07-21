@@ -215,15 +215,17 @@ export default function App() {
               })
             });
           }
+        } else {
+          throw new Error(`Server returned status: ${response.status}`);
         }
       } catch (err) {
         console.error("Initial server sync failed, falling back to local cache:", err);
         const storedPolicies = localStorage.getItem("wis_policies");
         const storedNotifs = localStorage.getItem("wis_notifications");
         const storedAudits = localStorage.getItem("wis_audit_logs");
-        if (storedPolicies) setPolicies(JSON.parse(storedPolicies));
-        if (storedNotifs) setNotifications(JSON.parse(storedNotifs));
-        if (storedAudits) setAuditLogs(JSON.parse(storedAudits));
+        setPolicies(storedPolicies ? JSON.parse(storedPolicies) : initialPolicies);
+        setNotifications(storedNotifs ? JSON.parse(storedNotifs) : initialNotifications);
+        setAuditLogs(storedAudits ? JSON.parse(storedAudits) : initialAuditLogs);
       }
     };
 
