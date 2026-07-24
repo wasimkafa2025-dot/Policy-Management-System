@@ -157,10 +157,10 @@ export default function PolicyLibrary({
       const matchStatus = !statusFilter || p.status === statusFilter;
       const matchYear = !yearFilter || p.year === yearFilter;
       const matchSearch = !searchTerm || 
-        p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.description.toLowerCase().includes(searchTerm.toLowerCase());
+        (p.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.code || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.category || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.description || "").toLowerCase().includes(searchTerm.toLowerCase());
       return matchDept && matchStatus && matchYear && matchSearch;
     });
 

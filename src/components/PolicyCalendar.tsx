@@ -77,9 +77,9 @@ export default function PolicyCalendar({ policies, onSelectPolicy }: PolicyCalen
   const filteredPolicies = useMemo(() => {
     return policies.filter(p => {
       const matchesSearch = !searchTerm || 
-        p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.category.toLowerCase().includes(searchTerm.toLowerCase());
+        (p.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.code || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.category || "").toLowerCase().includes(searchTerm.toLowerCase());
       const matchesDept = selectedDept === "All" || p.department === selectedDept;
       return matchesSearch && matchesDept;
     });

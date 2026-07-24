@@ -13,7 +13,7 @@ import {
   Policy, PolicyStatus, SystemNotification, AuditLog, 
   AIAnalysisResult, ProcedureLink, FormLink, UserAccount
 } from "./types";
-import { initialPolicies, initialNotifications, initialAuditLogs } from "./data/initialPolicies";
+import { initialPolicies, initialNotifications, initialAuditLogs, initialUsers } from "./data/initialPolicies";
 
 // View imports
 import Dashboard from "./components/Dashboard";
@@ -271,13 +271,18 @@ export default function App() {
           throw new Error(`Server returned status: ${response.status}`);
         }
       } catch (err) {
-        console.error("Initial server sync failed, falling back to local cache:", err);
+        console.warn("Initial server sync offline, falling back to local cache:", err);
         const storedPolicies = localStorage.getItem("wis_policies");
         const storedNotifs = localStorage.getItem("wis_notifications");
         const storedAudits = localStorage.getItem("wis_audit_logs");
-        setPolicies(safeJsonParse(storedPolicies, initialPolicies));
+        const storedUsers = localStorage.getItem("wis_users");
+
+        const parsedPolicies = safeJsonParse(storedPolicies, initialPolicies);
+        const loadedPolicies = sanitizePolicies(parsedPolicies.length > 0 ? parsedPolicies : initialPolicies);
+        setPolicies(loadedPolicies);
         setNotifications(safeJsonParse(storedNotifs, initialNotifications));
         setAuditLogs(safeJsonParse(storedAudits, initialAuditLogs));
+        setUsers(safeJsonParse(storedUsers, initialUsers));
       }
     };
 
