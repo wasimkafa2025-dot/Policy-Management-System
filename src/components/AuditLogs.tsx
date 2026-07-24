@@ -376,17 +376,6 @@ export default function AuditLogs({ auditLogs, onAddManualLog, users, onAddUser 
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-muted-foreground uppercase">Email Address</label>
-                  <input 
-                    type="email" 
-                    placeholder="e.g. jason@wis-policy.com"
-                    value={newUserEmail}
-                    onChange={(e) => setNewUserEmail(e.target.value)}
-                    className="w-full p-2.5 rounded-xl text-foreground focus:outline-none focus:border-purple-500 glass-input"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
                   <label className="text-muted-foreground uppercase">Sandbox Sign In Password</label>
                   <div className="relative">
                     <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />

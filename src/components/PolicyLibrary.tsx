@@ -654,11 +654,11 @@ export default function PolicyLibrary({
                        const coverColor = p.coverColor || "#7B337E";
                        const isHovered = hoveredCardId === p.id;
                        const statusClass = 
-                         p.status === 'Draft' ? 'border-zinc-800 text-zinc-400 bg-zinc-900/40' :
-                         p.status === 'Under Review' ? 'border-amber-500/20 text-amber-400 bg-amber-500/5' :
-                         p.status === 'Approved' ? 'border-emerald-500/20 text-emerald-400 bg-emerald-500/5' :
-                         p.status === 'Archived' ? 'border-zinc-500/20 text-zinc-400 bg-zinc-500/5' :
-                         'border-rose-500/20 text-rose-400 bg-rose-500/5';
+                         p.status === 'Draft' ? 'border-amber-500/30 text-amber-700 dark:text-amber-300 bg-amber-500/10' :
+                         p.status === 'Under Review' ? 'border-blue-500/30 text-blue-700 dark:text-blue-300 bg-blue-500/10' :
+                         p.status === 'Approved' ? 'border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10' :
+                         p.status === 'Archived' ? 'border-slate-400/30 text-slate-600 dark:text-slate-400 bg-slate-400/10' :
+                         'border-rose-500/30 text-rose-700 dark:text-rose-300 bg-rose-500/10';
 
                        return (
                          <motion.div
@@ -671,50 +671,49 @@ export default function PolicyLibrary({
                            onClick={() => onSelectPolicy(p.id)}
                            onMouseEnter={() => setHoveredCardId(p.id)}
                            onMouseLeave={() => setHoveredCardId(null)}
-                           className={`rounded-2xl overflow-hidden cursor-pointer border bg-[var(--bg-card)] hover:shadow-xl transition-all duration-300 flex ${view === 'list' ? 'flex-row items-stretch p-4 gap-5' : 'flex-col h-[320px]'}`}
+                           className={`group/card rounded-2xl overflow-hidden cursor-pointer border bg-[var(--bg-card)] hover:shadow-2xl transition-all duration-300 flex ${view === 'list' ? 'flex-row items-stretch p-4 gap-5' : 'flex-col h-[345px]'}`}
                            style={{
-                             borderColor: isHovered ? coverColor : 'var(--border-color)',
-                             boxShadow: isHovered ? `0 12px 24px -6px ${coverColor}25, 0 8px 16px -8px ${coverColor}20` : undefined,
-                             backgroundColor: isHovered ? `${coverColor}05` : 'var(--bg-card)'
+                             borderColor: isHovered ? `${coverColor}80` : 'var(--border-color)',
+                             boxShadow: isHovered ? `0 16px 32px -8px ${coverColor}30, 0 6px 16px -6px ${coverColor}20` : undefined,
                            }}
                          >
                            {/* Grid/Folder List Cover */}
                             {view !== 'list' ? (
                              <div 
-                               className="h-[175px] relative overflow-hidden flex items-center justify-center border-b transition-all duration-300" 
+                               className="h-[185px] relative overflow-hidden flex items-center justify-center border-b transition-all duration-300" 
                                style={{ 
-                                 background: `linear-gradient(135deg, ${coverColor}18, ${coverColor}05)`,
+                                 background: `linear-gradient(135deg, ${coverColor}15, ${coverColor}03)`,
                                  borderBottomColor: `${coverColor}20`
                                }}
                              >
                                {/* Ambient colored glowing aura behind the book */}
                                <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30 dark:opacity-45">
                                  <div 
-                                   className="w-28 h-28 rounded-full blur-2xl transition-all duration-500 scale-125"
+                                   className="w-28 h-28 rounded-full blur-2xl transition-all duration-500"
                                    style={{ 
                                      backgroundColor: coverColor,
-                                     transform: isHovered ? 'scale(1.3)' : 'scale(1)'
+                                     transform: isHovered ? 'scale(1.35)' : 'scale(1)'
                                    }} 
                                  />
                                </div>
 
-                               {/* Elegant bookstore library shelf line */}
-                               <div className="absolute bottom-0 inset-x-0 h-1 bg-white/[0.04] backdrop-blur-sm border-t border-white/5" />
+                               {/* Elegant library shelf line */}
+                               <div className="absolute bottom-0 inset-x-0 h-[2px] bg-black/5 dark:bg-white/10" />
 
                                <div className="relative group/book mt-1" style={{ perspective: '1000px' }}>
                                  {/* Silk Bookmark Ribbon */}
                                  <div 
-                                   className="absolute bottom-[-12px] left-[32px] w-2 h-6 bg-amber-500/95 rounded-b shadow transition-all duration-300 origin-top z-10"
+                                   className="absolute bottom-[-6px] right-3 w-2.5 h-6 bg-gradient-to-b from-amber-400 to-amber-600 rounded-b shadow-md transition-all duration-300 origin-top z-10"
                                    style={{
                                      transform: isHovered 
-                                       ? 'rotate(8deg) translateZ(8px) translateY(1px)' 
-                                       : 'rotate(2deg) translateZ(-4px)',
+                                       ? 'rotate(-6deg) translateZ(6px) translateY(2px)' 
+                                       : 'rotate(-2deg) translateZ(-2px)',
                                    }}
                                  />
 
-                                 {/* Realistic 3D paper page stack underneath - Outer page edge */}
+                                 {/* 3D Paper Page Stack - Outer Edge */}
                                  <div 
-                                   className="absolute top-1 bottom-1 w-[114px] rounded-r bg-neutral-100 dark:bg-zinc-800 border-r border-y border-neutral-300 dark:border-zinc-700 transition-all duration-300"
+                                   className="absolute top-1 bottom-1 w-[112px] rounded-r bg-slate-100 dark:bg-zinc-800 border-r border-y border-slate-300 dark:border-zinc-700 transition-all duration-300"
                                    style={{
                                      transformStyle: 'preserve-3d',
                                      transform: isHovered
@@ -723,13 +722,12 @@ export default function PolicyLibrary({
                                      boxShadow: 'inset -2px 0 5px rgba(0,0,0,0.15)'
                                    }}
                                  >
-                                   {/* Page line pattern for realism */}
                                    <div className="absolute inset-y-0 right-0 w-3 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.06)_50%)] bg-[size:100%_4px] opacity-70 rounded-r" />
                                  </div>
 
-                                 {/* Inner page edge layer for extra thickness */}
+                                 {/* 3D Paper Page Stack - Inner Edge */}
                                  <div 
-                                   className="absolute top-2 bottom-2 w-[112px] rounded-r bg-white dark:bg-zinc-900 border-r border-y border-neutral-250 dark:border-zinc-755 transition-all duration-300"
+                                   className="absolute top-2 bottom-2 w-[110px] rounded-r bg-white dark:bg-zinc-900 border-r border-y border-slate-200 dark:border-zinc-800 transition-all duration-300"
                                    style={{
                                      transformStyle: 'preserve-3d',
                                      transform: isHovered
@@ -737,46 +735,49 @@ export default function PolicyLibrary({
                                        : 'rotateY(-6deg) rotateX(3deg) translateZ(-10px) translateX(10px)',
                                    }}
                                  >
-                                   {/* Page line pattern */}
                                    <div className="absolute inset-y-0 right-0 w-2 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.06)_50%)] bg-[size:100%_4px] opacity-50 rounded-r" />
                                  </div>
 
-                                 {/* Primary Book bound cover */}
+                                 {/* Primary Book Bound Cover */}
                                  <div 
-                                   className="w-[116px] h-[152px] rounded-r shadow-2xl relative overflow-hidden flex flex-col justify-between p-3 text-white transition-all duration-300 select-none" 
+                                   className="w-[114px] h-[148px] rounded-r-lg shadow-2xl relative overflow-hidden flex flex-col justify-between p-3.5 text-white transition-all duration-300 select-none border-r border-white/20" 
                                    style={{ 
                                      backgroundColor: coverColor,
                                      transformStyle: 'preserve-3d',
                                      transform: isHovered 
-                                       ? 'rotateY(-24deg) rotateX(6deg) translateZ(12px) scale(1.05)' 
-                                       : 'rotateY(-12deg) rotateX(3deg) translateZ(0px)',
+                                       ? 'rotateY(-22deg) rotateX(5deg) translateZ(12px) scale(1.04)' 
+                                       : 'rotateY(-10deg) rotateX(2deg) translateZ(0px)',
                                      boxShadow: isHovered 
-                                       ? `18px 12px 28px -4px rgba(0,0,0,0.4), -4px 4px 12px -3px ${coverColor}50` 
-                                       : `8px 6px 14px -4px rgba(0,0,0,0.3), -1px 2px 6px -4px ${coverColor}20`
+                                       ? `20px 14px 30px -4px rgba(0,0,0,0.45), -4px 4px 12px -3px ${coverColor}60` 
+                                       : `10px 8px 16px -4px rgba(0,0,0,0.3), -1px 2px 6px -4px ${coverColor}30`
                                    }}
                                  >
-                                   {/* Left book joint crease shading */}
-                                   <div className="absolute left-0 top-0 bottom-0 w-2.5 bg-gradient-to-r from-black/35 via-black/10 to-transparent pointer-events-none" />
-                                   <div className="absolute left-2.5 top-0 bottom-0 w-[1px] bg-white/10" />
-                                   <div className="absolute left-3 top-0 bottom-0 w-[1px] bg-black/15" />
+                                   {/* Spine Crease & Shading */}
+                                   <div className="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-black/40 via-black/15 to-transparent pointer-events-none" />
+                                   <div className="absolute left-3 top-0 bottom-0 w-[1px] bg-amber-300/30" />
+                                   <div className="absolute left-3.5 top-0 bottom-0 w-[1px] bg-black/20" />
                                    
-                                   {/* Embossed gold/silver premium highlights on hover */}
+                                   {/* Gold Metallic Highlight edge */}
                                    <div 
-                                     className="absolute right-0 top-0 bottom-0 w-[2px] bg-white/20 transition-opacity duration-300"
-                                     style={{ opacity: isHovered ? 0.4 : 0 }}
+                                     className="absolute right-0 top-0 bottom-0 w-[2px] bg-amber-200/40 transition-opacity duration-300"
+                                     style={{ opacity: isHovered ? 0.6 : 0.2 }}
                                    />
                                    
-                                   {/* Gloss sheen overlay */}
-                                   <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/[0.04] to-white/[0.12] pointer-events-none" />
+                                   {/* Sheen Overlay */}
+                                   <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/[0.05] to-white/[0.15] pointer-events-none" />
 
-                                   <div className="space-y-1 relative z-10">
-                                     <span className="text-[7px] font-black uppercase tracking-wider bg-black/30 px-1.5 py-0.5 rounded inline-block text-amber-200 border border-white/5">{p.department}</span>
-                                     <h4 className="text-[10px] font-black line-clamp-3 leading-normal tracking-tight text-white drop-shadow-md mt-1">{p.coverTitle || p.title}</h4>
+                                   <div className="space-y-1 relative z-10 pl-1">
+                                     <span className="text-[7.5px] font-black uppercase tracking-widest bg-black/40 px-1.5 py-0.5 rounded text-amber-200 border border-amber-300/20 backdrop-blur-xs inline-block truncate max-w-[95px] shadow-2xs">
+                                       {p.department}
+                                     </span>
+                                     <h4 className="text-[10.5px] font-extrabold line-clamp-3 leading-snug tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-1.5">
+                                       {p.coverTitle || p.title}
+                                     </h4>
                                    </div>
                                    
-                                   <div className="flex items-center justify-between border-t border-white/20 pt-1 mt-auto text-[8px] font-mono relative z-10">
-                                     <span className="font-bold tracking-wider">{p.code}</span>
-                                     <span>v{p.version}</span>
+                                   <div className="flex items-center justify-between border-t border-white/25 pt-1.5 mt-auto text-[8.5px] font-mono relative z-10 text-white/95 pl-1">
+                                     <span className="font-bold tracking-wider">{p.code ? p.code.replace(/^POL-/, 'WIS-POLICY-') : 'WIS-POLICY-1001'}</span>
+                                     <span className="bg-white/15 px-1 py-0.2 rounded text-[7.5px] font-sans font-bold text-amber-100">v{p.version}</span>
                                    </div>
                                  </div>
                                </div>
@@ -804,40 +805,42 @@ export default function PolicyLibrary({
                             )}
 
                             {/* Info Section */}
-                            <div className={`flex-1 flex flex-col justify-between ${view === 'list' ? 'p-1 gap-2' : 'p-4 h-[145px]'}`}>
-                              <div className="space-y-1">
+                            <div className={`flex-1 flex flex-col justify-between ${view === 'list' ? 'p-1 gap-2' : 'p-4 h-[160px]'}`}>
+                              <div className="space-y-1.5">
                                 <div className="flex items-center justify-between gap-2">
                                   <span 
-                                    className="text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded"
+                                    className="text-[9px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-md border shadow-2xs"
                                     style={{
-                                      backgroundColor: `${coverColor}15`,
+                                      backgroundColor: `${coverColor}12`,
+                                      borderColor: `${coverColor}25`,
                                       color: coverColor
                                     }}
                                   >
                                     {p.category}
                                   </span>
-                                  <span className={`text-[9px] font-black px-2 py-0.5 border rounded-full uppercase tracking-wider ${statusClass}`}>
+                                  <span className={`text-[9px] font-extrabold px-2.5 py-0.5 border rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-2xs ${statusClass}`}>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />
                                     {p.status}
                                   </span>
                                 </div>
                                 <h3 
-                                  className={`font-bold transition-colors ${view === 'list' ? 'text-sm mt-0.5' : 'text-xs mt-1.5'}`}
+                                  className={`font-extrabold transition-colors ${view === 'list' ? 'text-sm mt-0.5' : 'text-xs mt-1.5'}`}
                                   style={{
                                     color: isHovered ? coverColor : 'var(--text-primary)'
                                   }}
                                 >
                                   {p.title}
                                 </h3>
-                                <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed font-sans">{p.description}</p>
+                                <p className="text-[11px] text-[var(--text-muted)] line-clamp-2 leading-relaxed font-sans">{p.description}</p>
                               </div>
 
                               {/* Actions bar inside card */}
                               <div 
-                                className="flex items-center justify-between border-t pt-2.5 text-[11px] text-muted-foreground mt-auto"
+                                className="flex items-center justify-between border-t pt-2.5 text-[11px] text-[var(--text-muted)] mt-auto"
                                 style={{ borderTopColor: `${coverColor}18` }}
                               >
-                                <div className="flex items-center gap-1.5">
-                                  <Calendar className="w-3.5 h-3.5 opacity-60" />
+                                <div className="flex items-center gap-1.5 font-medium">
+                                  <Calendar className="w-3.5 h-3.5 opacity-70 text-[var(--text-muted)]" />
                                   <span>{p.year}</span>
                                 </div>
                                 
@@ -847,10 +850,10 @@ export default function PolicyLibrary({
                                       e.stopPropagation();
                                       onSelectPolicy(p.id);
                                     }}
-                                    className="px-2.5 py-1 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer animate-none border"
+                                    className="px-3 py-1 rounded-lg text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer border shadow-2xs"
                                     style={{
                                       backgroundColor: `${coverColor}15`,
-                                      borderColor: `${coverColor}25`,
+                                      borderColor: `${coverColor}30`,
                                       color: coverColor,
                                     }}
                                     onMouseEnter={(e) => {
@@ -861,7 +864,7 @@ export default function PolicyLibrary({
                                     onMouseLeave={(e) => {
                                       e.currentTarget.style.backgroundColor = `${coverColor}15`;
                                       e.currentTarget.style.color = coverColor;
-                                      e.currentTarget.style.borderColor = `${coverColor}25`;
+                                      e.currentTarget.style.borderColor = `${coverColor}30`;
                                     }}
                                     title="Open detailed policy record"
                                   >
@@ -873,7 +876,7 @@ export default function PolicyLibrary({
                                     <>
                                       <button 
                                         onClick={(e) => openEditModal(p, e)}
-                                        className="p-1.5 hover:bg-amber-500/10 text-zinc-400 hover:text-amber-500 border border-transparent hover:border-amber-500/15 rounded-lg transition-all cursor-pointer"
+                                        className="p-1.5 hover:bg-amber-500/10 text-[var(--text-muted)] hover:text-amber-500 border border-transparent hover:border-amber-500/20 rounded-lg transition-all cursor-pointer"
                                         title="Edit Policy"
                                       >
                                         <Edit2 className="w-3.5 h-3.5" />
@@ -909,7 +912,7 @@ export default function PolicyLibrary({
                                             e.stopPropagation();
                                             setDeleteConfirmId(p.id);
                                           }}
-                                          className="p-1.5 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 border border-transparent hover:border-rose-500/15 rounded-lg transition-all cursor-pointer"
+                                          className="p-1.5 hover:bg-rose-500/10 text-[var(--text-muted)] hover:text-rose-500 border border-transparent hover:border-rose-500/20 rounded-lg transition-all cursor-pointer"
                                           title="Delete Policy"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
@@ -1257,11 +1260,10 @@ export default function PolicyLibrary({
                           </div>
                         </div>
 
-                        {/* Bottom Metadata: Year */}
-                        <div className="text-center z-10 pt-2 border-t border-white/10">
-                          <span className="text-[10px] font-black tracking-widest font-mono text-white/90">
-                            {formData.coverYear}
-                          </span>
+                        {/* Bottom Metadata: WIS-POLICY Code & Version */}
+                        <div className="flex items-center justify-between border-t border-white/20 pt-1.5 mt-auto text-[8.5px] font-mono relative z-10 text-white/95 pl-1">
+                          <span className="font-bold tracking-wider">WIS-POLICY</span>
+                          <span className="bg-white/15 px-1 py-0.2 rounded text-[7.5px] font-sans font-bold text-amber-100">v{formData.version || "1.0"}</span>
                         </div>
                         
                         {/* Front cover glossy sheen layer */}

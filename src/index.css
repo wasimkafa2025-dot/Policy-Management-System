@@ -5,81 +5,89 @@
    1. COLOR SPECIFICATION & FLEXIBLE CUSTOM THEME VARIABLES
    ============================================================ */
 :root {
-  /* NIGHT MODE (Slick Organic Dark Blue-Green with Premium Light Gold Text & Highlights) */
-  --bg-app: #06110d;            /* Rich dark organic spruce background */
-  --bg-panel: #0b221a;          /* Deep warm dark organic green-blue for left sidebar, headers, and forms */
-  --bg-card: #0f2c22;           /* Warm obsidian deep emerald forest green for cards and panels */
-  --bg-input: #081712;          /* Ultra dark forest-black for input fields and selectors */
-  --border-color: rgba(223, 204, 161, 0.25); /* Warm light gold-tinted borders */
+  /* DARK MODE
+     Dashboard (Background): #02024F
+     Theme (Panels/Sidebar): #02024F
+     Text: #FCFCFC
+  */
+  --bg-app: #02024F;            /* Deep midnight blue dashboard background #02024F */
+  --bg-panel: #02024F;          /* Deep midnight blue theme panel & sidebar #02024F */
+  --bg-card: #04046d;           /* Slightly elevated rich blue card container */
+  --bg-input: #010136;          /* Dark navy input fields */
+  --border-color: rgba(252, 252, 252, 0.22); /* Crisp white border tint */
   
-  --text-primary: #dfcca1;      /* Premium light gold text for titles and main labels */
-  --text-secondary: #ebd5b3;    /* Soft biscuit gold for secondary headings */
-  --text-muted: #7da592;        /* Elegant sage grey-green for descriptions */
+  --text-primary: #FCFCFC;      /* Crisp pure white text #FCFCFC */
+  --text-secondary: #e0f2fe;    /* Soft ice blue secondary text */
+  --text-muted: #93c5fd;        /* High-contrast light blue muted text */
   
-  --accent-bg: #dfcca1;         /* Premium light gold for active items and primary buttons */
-  --accent-text: #0b221a;       /* Deep dark green text for high contrast on active items */
-  --accent-hover: #ebd5b3;      /* Brighter biscuit gold on hover */
+  --accent-bg: #FCFCFC;         /* Crisp white for active tabs, primary buttons & highlights */
+  --accent-text: #02024F;       /* Deep midnight blue text on active white controls for high contrast */
+  --accent-hover: #e2e8f0;      /* Slightly soft white on hover */
   
-  --purple-glow: rgba(223, 204, 161, 0.08);
-  --glass-panel-bg: rgba(11, 34, 26, 0.85);
-  --glass-card-bg: rgba(15, 44, 34, 0.75);
-  --glass-input-bg: rgba(8, 23, 18, 0.65);
-  --glow-color: rgba(223, 204, 161, 0.12);
+  --purple-glow: rgba(252, 252, 252, 0.15);
+  --glass-panel-bg: rgba(2, 2, 79, 0.95);
+  --glass-card-bg: rgba(4, 4, 109, 0.90);
+  --glass-input-bg: rgba(1, 1, 54, 0.85);
+  --glow-color: rgba(252, 252, 252, 0.20);
 
-  /* Sidebar fallback variables in dark mode */
-  --bg-sidebar: #0b221a;
-  --text-sidebar: #7da592;
-  --bg-sidebar-active: #dfcca1;
-  --text-sidebar-active: #0b221a;
+  /* Sidebar variables in dark mode */
+  --bg-sidebar: #02024F;
+  --text-sidebar: #FCFCFC;
+  --bg-sidebar-active: #FCFCFC;
+  --text-sidebar-active: #02024F;
 
-  /* Dynamic accent-emerald colors to preserve green in dark theme */
-  --accent-emerald-850: #044e39;
-  --accent-emerald-800: #065f46;
-  --accent-emerald-700: #047857;
-  --accent-emerald-600: #059669;
-  --accent-emerald-500: #10b981;
-  --accent-emerald-400: #34d399;
-  --accent-emerald-300: #6ee7b7;
-  --accent-amber-300: #fcd34d;
+  /* Dynamic accent colors */
+  --accent-emerald-850: #02024F;
+  --accent-emerald-800: #04046d;
+  --accent-emerald-700: #FCFCFC;
+  --accent-emerald-600: #02024F;
+  --accent-emerald-500: #FCFCFC;
+  --accent-emerald-400: #FCFCFC;
+  --accent-emerald-300: #e0f2fe;
+  --accent-amber-300: #FCFCFC;
 }
 
 :root[data-theme="light"] {
-  /* DAY MODE (Follow pristine light purple theme from attached screenshot) */
-  --bg-app: #f8fafc;            /* Clean modern Slate-50 background */
-  --bg-panel: #ffffff;          /* White sidebar, headers, and form wrappers */
-  --bg-card: #ffffff;           /* Clean white cards and panels */
-  --bg-input: #f1f5f9;          /* Slate-100 inputs and lists */
-  --border-color: #e2e8f0;      /* Clean subtle slate border */
+  /* DAY MODE
+     Dashboard (Background): #FFF6F0
+     Theme (Panels/Sidebar): #FFF6F0
+     Text: #0F0229
+  */
+  --bg-app: #FFF6F0;            /* Warm cream dashboard background #FFF6F0 */
+  --bg-panel: #FFF6F0;          /* Theme panels & sidebar #FFF6F0 */
+  --bg-card: #fcebe1;           /* Soft cream card container */
+  --bg-input: #f7dfd2;          /* Soft input fill */
+  --border-color: rgba(15, 2, 41, 0.18); /* High-contrast border using dark purple text */
   
-  --text-primary: #0f172a;      /* Deep Slate-900 for main titles and text */
-  --text-secondary: #334155;    /* Slate-700 for subheadings and lists */
-  --text-muted: #64748b;        /* Slate-500 for captions and description */
+  --text-primary: #0F0229;      /* Crisp dark purple text #0F0229 */
+  --text-secondary: #270c57;    /* Rich dark purple secondary text */
+  --text-muted: #4e258a;        /* High-contrast dark purple muted text */
   
-  --accent-bg: #7c3aed;         /* Vibrant purple (violet-600) as primary light-mode accent */
-  --accent-text: #ffffff;       /* Soft crisp white text for purple elements */
-  --accent-hover: #6d28d9;      /* Darker violet-700 for hover elements */
+  --accent-bg: #0F0229;         /* High-contrast dark buttons & active indicators */
+  --accent-text: #FFF6F0;       /* Warm cream text on dark controls */
+  --accent-hover: #260b54;      /* Deep purple hover state */
   
-  --purple-glow: #f3e8ff;       /* Soft lavender purple-100 */
-  --glass-panel-bg: rgba(255, 255, 255, 0.85);
-  --glass-card-bg: rgba(255, 255, 255, 0.75);
-  --glass-input-bg: rgba(241, 245, 249, 0.85);
-  --glow-color: rgba(124, 58, 237, 0.05);
+  --purple-glow: rgba(15, 2, 41, 0.08);
+  --glass-panel-bg: rgba(255, 246, 240, 0.95);
+  --glass-card-bg: rgba(252, 235, 225, 0.90);
+  --glass-input-bg: rgba(247, 223, 210, 0.85);
+  --glow-color: rgba(15, 2, 41, 0.06);
 
-  /* Sidebar variables mapping for pristine light purple screenshot navigation */
-  --bg-sidebar: #ffffff;
-  --text-sidebar: #475569;
-  --bg-sidebar-active: #f3e8ff;
-  --text-sidebar-active: #7c3aed;
+  /* Sidebar variables in light mode */
+  --bg-sidebar: #FFF6F0;
+  --text-sidebar: #0F0229;
+  --bg-sidebar-active: #0F0229;
+  --text-sidebar-active: #FFF6F0;
 
-  /* Dynamic accent-emerald mapping to translate green to vibrant purple in light theme */
-  --accent-emerald-850: #6d28d9;
-  --accent-emerald-800: #7c3aed;
-  --accent-emerald-700: #6d28d9;
-  --accent-emerald-600: #7c3aed;
-  --accent-emerald-500: #8b5cf6;
-  --accent-emerald-400: #a78bfa;
-  --accent-emerald-300: #c084fc;
-  --accent-amber-300: #f3e8ff;
+  /* Dynamic accent mapping for light mode */
+  --accent-emerald-850: #0F0229;
+  --accent-emerald-800: #260b54;
+  --accent-emerald-700: #0F0229;
+  --accent-emerald-600: #0F0229;
+  --accent-emerald-500: #0F0229;
+  --accent-emerald-400: #0F0229;
+  --accent-emerald-300: #FFF6F0;
+  --accent-amber-300: #FFF6F0;
 }
 
 /* ============================================================

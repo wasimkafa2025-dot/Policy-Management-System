@@ -199,20 +199,37 @@ export default function PolicyDetailModal({
                 className="space-y-6"
               >
                 {/* 3D-ish Book render block */}
-                <div className="py-6 border border-zinc-900 bg-zinc-950 rounded-2xl flex items-center justify-center" style={{ background: `${coverColor}06` }}>
-                  <div className="w-[150px] h-[190px] rounded-r-lg shadow-2xl relative overflow-hidden flex flex-col justify-between p-4 text-white" style={{ backgroundColor: coverColor }}>
-                    <div className="absolute left-0 top-0 bottom-0 w-2.5 bg-black/15 shadow-inner" />
-                    
-                    <div className="space-y-1">
-                      <span className="text-[10px] uppercase font-bold tracking-wider opacity-80">{policy.department}</span>
-                      <h4 className="text-xs font-black line-clamp-3 leading-snug tracking-tight text-white">{policy.coverTitle || policy.title}</h4>
+                <div className="py-6 border border-[var(--border-color)] bg-[var(--bg-panel)]/40 rounded-2xl flex items-center justify-center relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${coverColor}12, ${coverColor}03)` }}>
+                  <div className="relative group/book my-2" style={{ perspective: '1000px' }}>
+                    {/* Silk Bookmark Ribbon */}
+                    <div className="absolute bottom-[-6px] right-4 w-3 h-7 bg-gradient-to-b from-amber-400 to-amber-600 rounded-b shadow-md origin-top z-10 -rotate-3" />
+
+                    {/* Page stack under */}
+                    <div className="absolute top-1 bottom-1 w-[146px] rounded-r bg-slate-100 dark:bg-zinc-800 border-r border-y border-slate-300 dark:border-zinc-700 shadow-md" style={{ transform: 'rotateY(-8deg) rotateX(3deg) translateZ(-5px) translateX(6px)' }}>
+                      <div className="absolute inset-y-0 right-0 w-3 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.06)_50%)] bg-[size:100%_4px] opacity-70 rounded-r" />
                     </div>
-                    
-                    <div className="flex items-center justify-between border-t border-white/20 pt-2 mt-auto text-[9px] font-mono opacity-80">
-                      <span>{policy.year}</span>
-                      <span>v{policy.version}</span>
+
+                    <div className="w-[148px] h-[192px] rounded-r-lg shadow-2xl relative overflow-hidden flex flex-col justify-between p-4 text-white transition-all duration-300 border-r border-white/20" style={{ backgroundColor: coverColor, transform: 'rotateY(-10deg) rotateX(2deg) translateZ(0px)' }}>
+                      {/* Spine Crease & Shading */}
+                      <div className="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-black/40 via-black/15 to-transparent pointer-events-none" />
+                      <div className="absolute left-3 top-0 bottom-0 w-[1px] bg-amber-300/30" />
+                      <div className="absolute left-3.5 top-0 bottom-0 w-[1px] bg-black/20" />
+                      
+                      <div className="space-y-1.5 relative z-10 pl-1">
+                        <span className="text-[8.5px] font-black uppercase tracking-widest bg-black/40 px-2 py-0.5 rounded text-amber-200 border border-amber-300/20 backdrop-blur-xs inline-block truncate max-w-[120px] shadow-2xs">
+                          {policy.department}
+                        </span>
+                        <h4 className="text-xs font-black line-clamp-3 leading-snug tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-1">
+                          {policy.coverTitle || policy.title}
+                        </h4>
+                      </div>
+                      
+                      <div className="flex items-center justify-between border-t border-white/25 pt-2 mt-auto text-[9.5px] font-mono relative z-10 text-white/95 pl-1">
+                        <span className="font-bold tracking-wider">{policy.code ? policy.code.replace(/^POL-/, 'WIS-POLICY-') : 'WIS-POLICY-1001'}</span>
+                        <span className="bg-white/15 px-1.5 py-0.5 rounded text-[8.5px] font-sans font-bold text-amber-100">v{policy.version}</span>
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/[0.05] to-white/[0.15] pointer-events-none" />
                     </div>
-                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/[0.03] to-white/[0.08] pointer-events-none" />
                   </div>
                 </div>
 

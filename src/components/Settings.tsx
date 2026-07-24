@@ -5,7 +5,8 @@ import {
   Grid, List, FileSpreadsheet, FileCode, Sparkles,
   RefreshCw, CheckCircle2, ExternalLink, Cloud, Loader2, 
   AlertCircle, FileText, Check, UserPlus, Users, KeyRound, 
-  Shield, Download, Lock
+  Shield, Download, Lock, Trash2, ArrowLeftRight, UserX,
+  ShieldAlert, AlertTriangle, ArrowRight, X
 } from "lucide-react";
 import { Policy, AuditLog, SystemNotification, UserAccount } from "../types";
 
@@ -22,6 +23,8 @@ interface SettingsProps {
   userRole?: 'admin' | 'user';
   users: UserAccount[];
   onAddUser: (username: string, email: string, role: 'admin' | 'user', password?: string) => void;
+  onDeleteUser?: (userId: string) => void;
+  onMoveUserRole?: (userId: string, newRole: 'admin' | 'user') => void;
 }
 
 export default function Settings({ 
@@ -36,11 +39,63 @@ export default function Settings({
   username,
   userRole = 'admin',
   users,
-  onAddUser
+  onAddUser,
+  onDeleteUser,
+  onMoveUserRole
 }: SettingsProps) {
   // States for JSON import feedback
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
+
+  // States for User Account Management (Delete & Move)
+  const [userToDelete, setUserToDelete] = useState<UserAccount | null>(null);
+  const [userToMove, setUserToMove] = useState<{ user: UserAccount; targetRole: 'admin' | 'user' } | null>(null);
+  const [userActionError, setUserActionError] = useState<string | null>(null);
+
+  const handleOpenDeleteModal = (u: UserAccount) => {
+    setUserActionError(null);
+    setUserToDelete(u);
+  };
+
+  const handleConfirmDeleteUser = () => {
+    if (!userToDelete) return;
+    if (userToDelete.username.toLowerCase() === username.toLowerCase()) {
+      setUserActionError("Cannot delete active session account (@" + userToDelete.username + "). Please log into another account first.");
+      return;
+    }
+    const remainingAdmins = users.filter(u => u.id !== userToDelete.id && u.role === 'admin');
+    if (userToDelete.role === 'admin' && remainingAdmins.length === 0) {
+      setUserActionError("Cannot delete account. System governance policy requires at least one active Super Admin account.");
+      return;
+    }
+    if (onDeleteUser) {
+      onDeleteUser(userToDelete.id);
+    }
+    setUserToDelete(null);
+    setUserActionError(null);
+  };
+
+  const handleOpenMoveModal = (u: UserAccount) => {
+    setUserActionError(null);
+    const target = u.role === 'admin' ? 'user' : 'admin';
+    setUserToMove({ user: u, targetRole: target });
+  };
+
+  const handleConfirmMoveUser = () => {
+    if (!userToMove) return;
+    if (userToMove.user.role === 'admin' && userToMove.targetRole !== 'admin') {
+      const remainingAdmins = users.filter(u => u.id !== userToMove.user.id && u.role === 'admin');
+      if (remainingAdmins.length === 0) {
+        setUserActionError("Cannot move role. The system must maintain at least one active Super Admin account.");
+        return;
+      }
+    }
+    if (onMoveUserRole) {
+      onMoveUserRole(userToMove.user.id, userToMove.targetRole);
+    }
+    setUserToMove(null);
+    setUserActionError(null);
+  };
 
   const handleJsonImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     setImportError(null);
@@ -65,7 +120,7 @@ export default function Settings({
 
         const sanitized = parsed.map((p, idx) => ({
           id: p.id || `imported-${Date.now()}-${idx}`,
-          code: p.code || `POL-IMP-${1000 + idx}`,
+          code: p.code ? p.code.replace(/^POL-/, 'WIS-POLICY-') : `WIS-POLICY-IMP-${1000 + idx}`,
           title: p.title || "Untitled Imported Policy",
           status: p.status || "Draft",
           version: p.version || "1.0",
@@ -119,8 +174,8 @@ export default function Settings({
     setAddUserSuccess(null);
     setAddUserError(null);
 
-    if (!newUsername.trim() || !newUserEmail.trim()) {
-      setAddUserError("Please fill out both Username and Email fields.");
+    if (!newUsername.trim()) {
+      setAddUserError("Please fill out the Username field.");
       return;
     }
 
@@ -130,7 +185,8 @@ export default function Settings({
       return;
     }
 
-    onAddUser(newUsername.trim(), newUserEmail.trim(), newUserRole, newUserPassword);
+    const email = `${newUsername.trim().toLowerCase()}@wis-policy.com`;
+    onAddUser(newUsername.trim(), email, newUserRole, newUserPassword);
     setAddUserSuccess(`Successfully registered user account: "${newUsername.trim()}" as ${newUserRole === "admin" ? "Super Admin" : "User (Read & Download)"}.`);
     
     // Reset form
@@ -301,8 +357,8 @@ export default function Settings({
         <p className="text-xs text-zinc-400">Configure global application themes, document views, backup exports, and OneDrive automated synchronization.</p>
       </div>
 
-      {/* OneDrive Automated Sync (PROMINENT TOP COMPONENT) */}
-      <div className="p-6 border border-[#232a3b] bg-[#161b26]/70 rounded-2xl space-y-6">
+      {/* OneDrive Automated Sync (PROMINENT TOP COMPONENT) - HIDDEN BY REQUEST */}
+      <div className="p-6 border border-[#232a3b] bg-[#161b26]/70 rounded-2xl space-y-6 hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#232a3b] pb-4">
           <div className="space-y-1">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -375,8 +431,8 @@ export default function Settings({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Theme Settings Card */}
-        <div className="p-5 border border-[#232a3b] bg-[#161b26]/70 rounded-2xl space-y-4">
+        {/* Theme Settings Card - HIDDEN BY REQUEST */}
+        <div className="p-5 border border-[#232a3b] bg-[#161b26]/70 rounded-2xl space-y-4 hidden">
           <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-[#232a3b] pb-2">
             <Palette className="w-4.5 h-4.5 text-purple-400" />
             Visual Workspace Customize
@@ -407,8 +463,8 @@ export default function Settings({
           </div>
         </div>
 
-        {/* Library Defaults Card */}
-        <div className="p-5 border border-[#232a3b] bg-[#161b26]/70 rounded-2xl space-y-4">
+        {/* Library Defaults Card - HIDDEN BY REQUEST */}
+        <div className="p-5 border border-[#232a3b] bg-[#161b26]/70 rounded-2xl space-y-4 hidden">
           <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-[#232a3b] pb-2">
             <Library className="w-4.5 h-4.5 text-purple-400" />
             Policy Library Defaults
@@ -572,18 +628,6 @@ export default function Settings({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-[var(--text-muted)]">Institutional Email</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. audit@wis-policy.com"
-                    value={newUserEmail}
-                    onChange={(e) => setNewUserEmail(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-bg)]"
-                  />
-                </div>
-
-                <div className="space-y-1">
                   <label className="text-[10px] uppercase font-bold text-[var(--text-muted)]">Authentication Password</label>
                   <div className="relative">
                     <input
@@ -677,50 +721,68 @@ export default function Settings({
 
           {/* Users List Directory */}
           <div className="lg:col-span-7 space-y-4">
-            <h4 className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-emerald-500" />
-              Active credentials directory ({users.length})
+            <h4 className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-emerald-500" />
+                Active credentials directory ({users.length})
+              </span>
+              <span className="text-[9px] text-[var(--text-muted)] font-normal">
+                Manage credentials, move access roles, or revoke user accounts
+              </span>
             </h4>
 
             <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
               {users.map((u) => (
-                <div key={u.id} className="p-4 border border-[var(--border-color)] bg-[var(--bg-panel)]/40 hover:bg-[var(--bg-panel)]/80 rounded-xl flex items-center justify-between gap-4 transition-all">
-                  <div className="space-y-1 truncate">
-                    <div className="flex items-center gap-2">
+                <div key={u.id} className="p-3.5 border border-[var(--border-color)] bg-[var(--bg-panel)]/40 hover:bg-[var(--bg-panel)]/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all">
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <div className="p-1 bg-[var(--bg-input)] rounded-md text-[var(--text-muted)] shrink-0">
                         <Users className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
                       </div>
                       <span className="text-xs font-bold text-[var(--text-primary)]">@{u.username}</span>
-                      {u.username === username && (
+                      {u.username.toLowerCase() === username.toLowerCase() && (
                         <span className="text-[8px] font-bold uppercase tracking-wider bg-[var(--accent-bg)]/10 text-[var(--accent-bg)] border border-[var(--accent-bg)]/20 px-1.5 py-0.5 rounded">
                           Active Session
                         </span>
                       )}
+                      <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                        u.role === "admin" 
+                          ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/25" 
+                          : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25"
+                      }`}>
+                        {u.role === "admin" ? "Super Admin" : "Auditor User"}
+                      </span>
                     </div>
-                    <p className="text-[11px] text-[var(--text-muted)] truncate pl-7">{u.email || "No email provided"}</p>
+                    <p className="text-[11px] text-[var(--text-muted)] truncate pl-6">{u.email || "No email provided"}</p>
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                      u.role === "admin" 
-                        ? "bg-[var(--accent-bg)]/10 text-[var(--accent-bg)] border border-[var(--accent-bg)]/20" 
-                        : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25"
-                    }`}>
-                      {u.role === "admin" ? "Super Admin" : "Auditor User"}
-                    </span>
-                    <div className="text-[9px] text-zinc-500 font-mono mt-1 flex items-center justify-end gap-1">
-                      {u.role === "admin" ? (
-                        <>
-                          <Shield className="w-2.5 h-2.5 text-purple-400" />
-                          <span>Full Rights</span>
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-2.5 h-2.5 text-emerald-400" />
-                          <span>View & Download</span>
-                        </>
-                      )}
-                    </div>
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                    {/* Move Role / Shift Access Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenMoveModal(u)}
+                      title={`Move account access role to ${u.role === 'admin' ? 'Auditor User' : 'Super Admin'}`}
+                      className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-[var(--border-color)] bg-[var(--bg-input)]/50 hover:bg-[var(--accent-bg)]/10 hover:text-[var(--accent-bg)] hover:border-[var(--accent-bg)]/30 text-[var(--text-secondary)] flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <ArrowLeftRight className="w-3 h-3 text-[var(--accent-bg)]" />
+                      <span>Move Role</span>
+                    </button>
+
+                    {/* Delete / Revoke Account Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDeleteModal(u)}
+                      title={u.username.toLowerCase() === username.toLowerCase() ? "Cannot delete active session account" : "Delete account credentials"}
+                      disabled={u.username.toLowerCase() === username.toLowerCase()}
+                      className={`px-2.5 py-1.5 text-[11px] font-medium rounded-lg border flex items-center gap-1.5 transition-all cursor-pointer ${
+                        u.username.toLowerCase() === username.toLowerCase()
+                          ? "border-zinc-700/40 text-zinc-500 bg-zinc-800/20 cursor-not-allowed opacity-50"
+                          : "border-red-500/20 bg-red-500/5 hover:bg-red-500/15 hover:border-red-500/40 text-red-500 dark:text-red-400"
+                      }`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Delete</span>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -864,6 +926,196 @@ export default function Settings({
                   </button>
                 </div>
               )}
+            </motion.div>
+          </div>
+        )}
+        {/* DELETE ACCOUNT CONFIRMATION MODAL */}
+        {userToDelete && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md border border-red-500/30 bg-[#131926] rounded-2xl shadow-2xl overflow-hidden p-6 space-y-5"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2.5 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl shrink-0">
+                    <UserX className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-base text-white">Delete Account Credentials</h3>
+                    <p className="text-xs text-zinc-400">
+                      Are you sure you want to delete and revoke system credentials for <strong className="text-white">@{userToDelete.username}</strong>?
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setUserToDelete(null); setUserActionError(null); }}
+                  className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {userActionError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-2 text-xs text-red-400">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{userActionError}</span>
+                </div>
+              )}
+
+              <div className="p-3 bg-[#111622] border border-[#232a3b] rounded-xl text-xs space-y-1.5 font-mono text-zinc-300">
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Username:</span>
+                  <span className="text-white font-bold">@{userToDelete.username}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Email:</span>
+                  <span className="text-zinc-300">{userToDelete.email || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Current Role:</span>
+                  <span className={userToDelete.role === 'admin' ? 'text-purple-400 font-bold' : 'text-emerald-400 font-bold'}>
+                    {userToDelete.role === 'admin' ? 'Super Admin' : 'Auditor User'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#232a3b]">
+                <button
+                  type="button"
+                  onClick={() => { setUserToDelete(null); setUserActionError(null); }}
+                  className="px-4 py-2 bg-[#1e293b] hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-bold border border-[#272e3f] transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteUser}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold shadow-lg transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Confirm Revoke & Delete</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* MOVE ACCOUNT ROLE MODAL */}
+        {userToMove && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md border border-purple-500/30 bg-[#131926] rounded-2xl shadow-2xl overflow-hidden p-6 space-y-5"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-xl shrink-0">
+                    <ArrowLeftRight className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-base text-white">Move Account Access Role</h3>
+                    <p className="text-xs text-zinc-400">
+                      Re-assign or move authorization tier for <strong className="text-white">@{userToMove.user.username}</strong>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setUserToMove(null); setUserActionError(null); }}
+                  className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {userActionError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-2 text-xs text-red-400">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{userActionError}</span>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+                  Target Access Tier:
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setUserToMove({ ...userToMove, targetRole: 'admin' })}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                      userToMove.targetRole === 'admin'
+                        ? "border-purple-500 bg-purple-500/15 text-white shadow-md shadow-purple-500/10"
+                        : "border-[#232a3b] bg-[#111622] hover:bg-[#181f30] text-zinc-400"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <Shield className="w-4 h-4 text-purple-400" />
+                      {userToMove.targetRole === 'admin' && <Check className="w-3.5 h-3.5 text-purple-400" />}
+                    </div>
+                    <div className="mt-2">
+                      <div className="text-xs font-bold text-white">Super Admin</div>
+                      <div className="text-[10px] text-zinc-400">Full Rights & Edits</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setUserToMove({ ...userToMove, targetRole: 'user' })}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                      userToMove.targetRole === 'user'
+                        ? "border-emerald-500 bg-emerald-500/15 text-white shadow-md shadow-emerald-500/10"
+                        : "border-[#232a3b] bg-[#111622] hover:bg-[#181f30] text-zinc-400"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <Download className="w-4 h-4 text-emerald-400" />
+                      {userToMove.targetRole === 'user' && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                    </div>
+                    <div className="mt-2">
+                      <div className="text-xs font-bold text-white">Auditor User</div>
+                      <div className="text-[10px] text-zinc-400">View & Download</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-3 bg-[#111622] border border-[#232a3b] rounded-xl text-xs flex items-center justify-between text-zinc-300">
+                <span className="text-zinc-500">Role Move:</span>
+                <div className="flex items-center gap-2 font-mono font-bold text-xs">
+                  <span className={userToMove.user.role === 'admin' ? 'text-purple-400' : 'text-emerald-400'}>
+                    {userToMove.user.role === 'admin' ? 'Super Admin' : 'Auditor User'}
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-500" />
+                  <span className={userToMove.targetRole === 'admin' ? 'text-purple-400' : 'text-emerald-400'}>
+                    {userToMove.targetRole === 'admin' ? 'Super Admin' : 'Auditor User'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#232a3b]">
+                <button
+                  type="button"
+                  onClick={() => { setUserToMove(null); setUserActionError(null); }}
+                  className="px-4 py-2 bg-[#1e293b] hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-bold border border-[#272e3f] transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmMoveUser}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold shadow-lg transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <ArrowLeftRight className="w-3.5 h-3.5" />
+                  <span>Confirm Role Move</span>
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

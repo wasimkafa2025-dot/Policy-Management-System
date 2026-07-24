@@ -1,5 +1,5 @@
 {
-  "name": "WIS Policy Management System",
+  "name": "HRWIS - Western International School",
   "description": "Premium policy and procedure management system with integrated AI document analysis and automated compliance monitoring.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

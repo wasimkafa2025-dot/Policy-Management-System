@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
+import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -14,6 +15,7 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
 
 // Initialize Analytics conditionally to prevent errors in non-browser/SSR environments or if blocked by ad-blockers
 let analytics = null;
@@ -26,3 +28,4 @@ if (typeof window !== "undefined") {
 }
 
 export { app, analytics };
+

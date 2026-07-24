@@ -5,7 +5,8 @@ import {
   Sparkles, Palette, LogOut, Bell, Moon, Sun, Search, 
   Clock, ShieldAlert, KeyRound, User, ChevronRight, X, Check,
   AlertTriangle, History, Menu, ChevronLeft, ChevronDown, FolderOpen,
-  Folder, Layers, Settings as SettingsIcon, BarChart2, Shield, Trash2, Database
+  Folder, Layers, Settings as SettingsIcon, BarChart2, Shield, Trash2, Database, Cloud, CloudOff,
+  Calendar as CalendarIcon
 } from "lucide-react";
 
 import { 
@@ -20,6 +21,9 @@ import PolicyLibrary from "./components/PolicyLibrary";
 import Settings from "./components/Settings";
 import PolicyDetailModal from "./components/PolicyDetailModal";
 import AuditLogs from "./components/AuditLogs";
+import PolicyCalendar from "./components/PolicyCalendar";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { db } from "./firebase";
 
 // Secure utility to prevent unhandled syntax errors when parsing corrupted local storage keys
 function safeJsonParse<T>(value: string | null, defaultValue: T): T {
@@ -42,12 +46,13 @@ export default function App() {
 
   // Auth State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [username, setUsername] = useState("HRWIS");
-  const [loginPassword, setPassword] = useState("WIS@123");
+  const [username, setUsername] = useState("");
+  const [loginPassword, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
 
   // App States
+  const [isFirestoreActive, setIsFirestoreActive] = useState(false);
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -137,6 +142,7 @@ export default function App() {
 
   // Push state to server for auto-sync
   const pushState = async (payload: { policies?: Policy[]; notifications?: SystemNotification[]; auditLogs?: AuditLog[]; users?: UserAccount[] }) => {
+    // 1. Try legacy Express backend sync
     try {
       await fetch("/api/sync", {
         method: "POST",
@@ -144,7 +150,17 @@ export default function App() {
         body: JSON.stringify(payload)
       });
     } catch (err) {
-      console.error("Failed to sync with server:", err);
+      console.warn("Express backend sync offline; continuing with cloud sync:", err);
+    }
+
+    // 2. Try Firebase Firestore cloud sync
+    try {
+      if (db) {
+        const docRef = doc(db, "wis_sync", "data");
+        await setDoc(docRef, payload, { merge: true });
+      }
+    } catch (err) {
+      console.error("Failed to sync with Firebase Firestore:", err);
     }
   };
 
@@ -157,7 +173,7 @@ export default function App() {
         const sess = JSON.parse(savedSession);
         if (sess && typeof sess === 'object') {
           setIsLoggedIn(!!sess.loggedIn);
-          setUsername(sess.username || "HRWIS");
+          setUsername(sess.username || "");
           const role = sess.role || 'admin';
           setUserRole(role);
           if (role === 'user') {
@@ -166,6 +182,21 @@ export default function App() {
         }
       } catch (err) {
         console.error("Failed to parse saved session from local storage:", err);
+      }
+    } else {
+      // Restore remembered credentials for login screen if saved
+      const savedCreds = localStorage.getItem("wis_remembered_creds");
+      if (savedCreds) {
+        try {
+          const parsed = JSON.parse(savedCreds);
+          if (parsed && parsed.username) {
+            setUsername(parsed.username);
+            setPassword(parsed.password || "");
+            setRememberMe(true);
+          }
+        } catch (e) {
+          console.error("Failed to parse remembered credentials from local storage:", e);
+        }
       }
     }
 
@@ -185,7 +216,7 @@ export default function App() {
     const savedView = localStorage.getItem("wis_view") as "grid" | "list" | null;
     if (savedView) setDefaultView(savedView);
 
-    // Initial sync fetch
+    // Initial legacy sync fetch fallback
     const initSync = async () => {
       try {
         const response = await fetch("/api/sync");
@@ -193,12 +224,13 @@ export default function App() {
           const data = await response.json();
           // Seed local states if server has policies or custom users
           if (data && (data.policies?.length > 0 || data.users?.length > 2)) {
-            setPolicies(data.policies || []);
+            const cleaned = sanitizePolicies(data.policies || []);
+            setPolicies(cleaned);
             setNotifications(data.notifications || []);
             setAuditLogs(data.auditLogs || []);
             setUsers(data.users || []);
 
-            localStorage.setItem("wis_policies", JSON.stringify(data.policies || []));
+            localStorage.setItem("wis_policies", JSON.stringify(cleaned));
             localStorage.setItem("wis_notifications", JSON.stringify(data.notifications || []));
             localStorage.setItem("wis_audit_logs", JSON.stringify(data.auditLogs || []));
             localStorage.setItem("wis_users", JSON.stringify(data.users || []));
@@ -209,7 +241,7 @@ export default function App() {
             const storedAudits = localStorage.getItem("wis_audit_logs");
             const storedUsers = localStorage.getItem("wis_users");
 
-            const localPolicies = safeJsonParse(storedPolicies, initialPolicies);
+            const localPolicies = sanitizePolicies(safeJsonParse(storedPolicies, initialPolicies));
             const localNotifs = safeJsonParse(storedNotifs, initialNotifications);
             const localAudits = safeJsonParse(storedAudits, initialAuditLogs);
             const defaultUsers = [
@@ -249,7 +281,87 @@ export default function App() {
       }
     };
 
-    initSync();
+    // Firebase Firestore real-time sync registration
+    let unsubscribeFirestore: (() => void) | null = null;
+
+    if (db) {
+      try {
+        const docRef = doc(db, "wis_sync", "data");
+        unsubscribeFirestore = onSnapshot(docRef, (snapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.data();
+            if (data) {
+              setIsFirestoreActive(true);
+              if (data.policies) {
+                setPolicies(data.policies);
+                localStorage.setItem("wis_policies", JSON.stringify(data.policies));
+              }
+              if (data.notifications) {
+                setNotifications(data.notifications);
+                localStorage.setItem("wis_notifications", JSON.stringify(data.notifications));
+              }
+              if (data.auditLogs) {
+                setAuditLogs(data.auditLogs);
+                localStorage.setItem("wis_audit_logs", JSON.stringify(data.auditLogs));
+              }
+              if (data.users) {
+                setUsers(data.users);
+                localStorage.setItem("wis_users", JSON.stringify(data.users));
+              }
+            }
+          } else {
+            // Firestore document does not exist yet (first-time initialization)
+            console.log("Firebase Firestore document 'wis_sync/data' not found. Seeding from local cache...");
+            const storedPolicies = localStorage.getItem("wis_policies");
+            const storedNotifs = localStorage.getItem("wis_notifications");
+            const storedAudits = localStorage.getItem("wis_audit_logs");
+            const storedUsers = localStorage.getItem("wis_users");
+
+            const localPolicies = safeJsonParse(storedPolicies, initialPolicies);
+            const localNotifs = safeJsonParse(storedNotifs, initialNotifications);
+            const localAudits = safeJsonParse(storedAudits, initialAuditLogs);
+            const defaultUsers = [
+              { id: "1", username: "HRWIS", password: "WIS@123", role: "admin", createdAt: "2026-01-01T00:00:00Z", email: "hr@wis-policy.com" },
+              { id: "2", username: "USERWIS", password: "WIS@123", role: "user", createdAt: "2026-01-01T00:00:00Z", email: "user@wis-policy.com" }
+            ];
+            const localUsers = safeJsonParse(storedUsers, defaultUsers);
+
+            setPolicies(localPolicies);
+            setNotifications(localNotifs);
+            setAuditLogs(localAudits);
+            setUsers(localUsers);
+
+            setIsFirestoreActive(true);
+
+            // Write initial state to Firestore to seed it
+            setDoc(docRef, {
+              policies: localPolicies,
+              notifications: localNotifs,
+              auditLogs: localAudits,
+              users: localUsers
+            }).catch(err => console.error("Error seeding initial Firestore state:", err));
+          }
+        }, (error) => {
+          console.error("Firestore onSnapshot subscription failed, falling back to REST sync:", error);
+          setIsFirestoreActive(false);
+          initSync();
+        });
+      } catch (err) {
+        console.error("Failed to initialize Firestore subscription, falling back to REST sync:", err);
+        setIsFirestoreActive(false);
+        initSync();
+      }
+    } else {
+      // No Firestore database, fall back immediately to REST sync
+      setIsFirestoreActive(false);
+      initSync();
+    }
+
+    return () => {
+      if (unsubscribeFirestore) {
+        unsubscribeFirestore();
+      }
+    };
   }, []);
 
   // Listen to deep-link "?policy=id" query parameter
@@ -274,11 +386,20 @@ export default function App() {
     }
   }, [policies, isLoggedIn]);
 
+  // Helper to ensure all policy codes use WIS-POLICY prefix
+  const sanitizePolicies = (list: Policy[]): Policy[] => {
+    return list.map(p => ({
+      ...p,
+      code: p.code ? p.code.replace(/^POL-/, 'WIS-POLICY-') : 'WIS-POLICY-1001'
+    }));
+  };
+
   // Save states helper and push to backend
   const updatePoliciesState = (newPolicies: Policy[]) => {
-    setPolicies(newPolicies);
-    localStorage.setItem("wis_policies", JSON.stringify(newPolicies));
-    pushState({ policies: newPolicies });
+    const cleaned = sanitizePolicies(newPolicies);
+    setPolicies(cleaned);
+    localStorage.setItem("wis_policies", JSON.stringify(cleaned));
+    pushState({ policies: cleaned });
   };
 
   const updateNotificationsState = (newNotifs: SystemNotification[]) => {
@@ -295,6 +416,9 @@ export default function App() {
 
   // Background auto-sync polling every 5 seconds
   useEffect(() => {
+    // If Firestore is active, do not poll the legacy API
+    if (isFirestoreActive) return;
+
     let active = true;
     const syncInterval = setInterval(async () => {
       try {
@@ -330,7 +454,7 @@ export default function App() {
       active = false;
       clearInterval(syncInterval);
     };
-  }, [policies, notifications, auditLogs, users]);
+  }, [policies, notifications, auditLogs, users, isFirestoreActive]);
 
   // Live ticking clock
   useEffect(() => {
@@ -386,8 +510,14 @@ export default function App() {
       
       if (rememberMe) {
         localStorage.setItem("wis_session", JSON.stringify(session));
+        localStorage.setItem("wis_remembered_creds", JSON.stringify({
+          username: matchedUser.username,
+          password: loginPassword,
+          rememberMe: true
+        }));
       } else {
         sessionStorage.setItem("wis_session", JSON.stringify(session));
+        localStorage.removeItem("wis_remembered_creds");
       }
 
       setCurrentPage("library");
@@ -406,6 +536,26 @@ export default function App() {
     localStorage.removeItem("wis_session");
     sessionStorage.removeItem("wis_session");
     setShowLogoutConfirm(false);
+
+    // Restore remembered credentials if saved, else reset form
+    const savedCreds = localStorage.getItem("wis_remembered_creds");
+    if (savedCreds) {
+      try {
+        const parsed = JSON.parse(savedCreds);
+        if (parsed && parsed.username) {
+          setUsername(parsed.username);
+          setPassword(parsed.password || "");
+          setRememberMe(true);
+          return;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    setUsername("");
+    setPassword("");
+    setRememberMe(false);
   };
 
   // State manipulation handlers
@@ -441,7 +591,7 @@ export default function App() {
       });
     } else {
       // Create mode
-      const nextCode = "POL-" + (1001 + list.length);
+      const nextCode = "WIS-POLICY-" + (1001 + list.length);
       const newPolicy: Policy = {
         id: (list.length + 1).toString(),
         code: nextCode,
@@ -689,6 +839,79 @@ export default function App() {
     updateAuditLogsState([newLog, ...auditLogs]);
   };
 
+  const handleDeleteUser = (userId: string) => {
+    const userToDelete = users.find(u => u.id === userId);
+    if (!userToDelete) return;
+
+    if (userToDelete.username.toLowerCase() === username.toLowerCase()) {
+      alert(`Cannot delete active session account (@${userToDelete.username}). Please switch accounts to delete.`);
+      return;
+    }
+
+    const remainingAdmins = users.filter(u => u.id !== userId && u.role === 'admin');
+    if (userToDelete.role === 'admin' && remainingAdmins.length === 0) {
+      alert("System governance requires at least one active Super Admin account.");
+      return;
+    }
+
+    const updatedUsers = users.filter(u => u.id !== userId);
+    setUsers(updatedUsers);
+    localStorage.setItem("wis_users", JSON.stringify(updatedUsers));
+    pushState({ users: updatedUsers });
+
+    const newLog: AuditLog = {
+      id: "audit-" + Date.now(),
+      action: "Account Revoked & Deleted",
+      user: username,
+      timestamp: new Date().toISOString(),
+      details: `Revoked credentials & deleted profile: @${userToDelete.username} (${userToDelete.email || "No email"})`
+    };
+    updateAuditLogsState([newLog, ...auditLogs]);
+  };
+
+  const handleMoveUserRole = (userId: string, newRole: 'admin' | 'user') => {
+    const userToMove = users.find(u => u.id === userId);
+    if (!userToMove) return;
+
+    if (userToMove.role === newRole) return;
+
+    if (userToMove.role === 'admin' && newRole !== 'admin') {
+      const remainingAdmins = users.filter(u => u.id !== userId && u.role === 'admin');
+      if (remainingAdmins.length === 0) {
+        alert("Cannot change role. The system must maintain at least one active Super Admin account.");
+        return;
+      }
+    }
+
+    const updatedUsers = users.map(u => u.id === userId ? { ...u, role: newRole } : u);
+    setUsers(updatedUsers);
+    localStorage.setItem("wis_users", JSON.stringify(updatedUsers));
+    pushState({ users: updatedUsers });
+
+    if (userToMove.username.toLowerCase() === username.toLowerCase()) {
+      setUserRole(newRole);
+      const sess = localStorage.getItem("wis_session");
+      if (sess) {
+        try {
+          const parsed = JSON.parse(sess);
+          parsed.role = newRole;
+          localStorage.setItem("wis_session", JSON.stringify(parsed));
+        } catch (e) {
+          console.error("Error updating session role", e);
+        }
+      }
+    }
+
+    const newLog: AuditLog = {
+      id: "audit-" + Date.now(),
+      action: "User Access Level Moved",
+      user: username,
+      timestamp: new Date().toISOString(),
+      details: `Moved account @${userToMove.username} role from ${userToMove.role === 'admin' ? 'Super Admin' : 'Auditor User'} to ${newRole === 'admin' ? 'Super Admin' : 'Auditor User'}`
+    };
+    updateAuditLogsState([newLog, ...auditLogs]);
+  };
+
   const handleExportData = (format: "json" | "csv") => {
     if (policies.length === 0) return;
 
@@ -732,7 +955,7 @@ export default function App() {
   };
 
   const handleSidebarNavigate = (page: string) => {
-    if (userRole === "user" && page !== "library") {
+    if (userRole === "user" && page !== "library" && page !== "calendar") {
       return;
     }
     setCurrentPage(page);
@@ -771,8 +994,8 @@ export default function App() {
                   <ShieldCheck className="w-8 h-8 text-purple-400" />
                 </div>
                 <div className="space-y-1">
-                  <h1 className="text-xl font-black text-foreground tracking-tight">WIS Policy & Procedure</h1>
-                  <span className="text-xs text-purple-400 uppercase tracking-widest font-bold">Enterprise Management Suite</span>
+                  <h1 className="text-xl font-black text-foreground tracking-tight">HRWIS</h1>
+                  <span className="text-xs text-purple-400 uppercase tracking-widest font-bold">WESTERN INTERNATIONAL SCHOOL</span>
                 </div>
               </div>
 
@@ -787,7 +1010,7 @@ export default function App() {
                       required
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Enter administrator username" 
+                      placeholder="Enter username" 
                       className="w-full pl-10 pr-4 py-2.5 rounded-xl text-foreground placeholder:text-zinc-500 focus:outline-none focus:border-purple-500 glass-input"
                     />
                   </div>
@@ -878,8 +1101,8 @@ export default function App() {
                             <BookOpen className="w-5 h-5" />
                           </div>
                           <div>
-                            <h2 className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">WIS P&P</h2>
-                            <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest font-bold">Governance Hub</span>
+                            <h2 className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">HRWIS</h2>
+                            <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest font-bold">WESTERN INTERNATIONAL SCHOOL</span>
                           </div>
                         </div>
 
@@ -919,6 +1142,11 @@ export default function App() {
                             id: "library",
                             name: "Policy Library",
                             icon: BookOpen
+                          },
+                          {
+                            id: "calendar",
+                            name: "Policy Calendar",
+                            icon: CalendarIcon
                           },
                           {
                             id: "settings",
@@ -1040,8 +1268,8 @@ export default function App() {
                         <BookOpen className="w-5 h-5" />
                       </div>
                       <div>
-                        <h2 className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">WIS P&P</h2>
-                        <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest font-bold">Governance Hub</span>
+                        <h2 className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">HRWIS</h2>
+                        <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest font-bold">WESTERN INTERNATIONAL SCHOOL</span>
                       </div>
                     </div>
                   )}
@@ -1090,6 +1318,11 @@ export default function App() {
                       id: "library",
                       name: "Policy Library",
                       icon: BookOpen
+                    },
+                    {
+                      id: "calendar",
+                      name: "Policy Calendar",
+                      icon: CalendarIcon
                     },
                     {
                       id: "settings",
@@ -1242,7 +1475,30 @@ export default function App() {
                   />
                 </div>
 
-                <div className="flex items-center gap-4 ml-auto md:ml-auto">
+                <div className="flex items-center gap-2 sm:gap-3 ml-auto md:ml-auto">
+                  {/* Sync Status Indicator */}
+                  <div 
+                    className={`text-[10px] font-bold font-mono flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border transition-all ${
+                      isFirestoreActive 
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" 
+                        : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                    }`}
+                    title={isFirestoreActive ? "Firestore Cloud Sync: Live & Active" : "Fallback Mode: Offline Local Storage"}
+                  >
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isFirestoreActive ? "bg-emerald-400" : "bg-amber-400"}`}></span>
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${isFirestoreActive ? "bg-emerald-500" : "bg-amber-500"}`}></span>
+                    </span>
+                    {isFirestoreActive ? (
+                      <Cloud className="w-3.5 h-3.5 text-emerald-500" />
+                    ) : (
+                      <CloudOff className="w-3.5 h-3.5 text-amber-500" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {isFirestoreActive ? "Firestore Live" : "Offline Storage"}
+                    </span>
+                  </div>
+
                   {/* Live ticking clock */}
                   <div className="text-[10px] font-bold text-muted-foreground font-mono flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)]/40">
                     <Clock className="w-3.5 h-3.5 text-purple-400" />
@@ -1324,6 +1580,12 @@ export default function App() {
                       userRole={userRole}
                     />
                   )}
+                  {currentPage === "calendar" && (
+                    <PolicyCalendar 
+                      policies={policies}
+                      onSelectPolicy={(p) => handleSelectAndOpenDetail(p.id)}
+                    />
+                  )}
                   {(currentPage === "auditlogs" || currentPage === "employee-access") && (
                     <AuditLogs 
                       auditLogs={auditLogs}
@@ -1346,6 +1608,8 @@ export default function App() {
                       userRole={userRole}
                       users={users}
                       onAddUser={handleAddUser}
+                      onDeleteUser={handleDeleteUser}
+                      onMoveUserRole={handleMoveUserRole}
                     />
                   )}
                 </AnimatePresence>
